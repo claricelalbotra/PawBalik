@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import form_field %}
+{% from "partials/ui.html" import page_header, callout, avatar %}
+{% block title %}Profile &amp; Settings{% endblock %}
+{% block content %}
+<div class="container container--narrow">
+  {{ page_header("Profile &", "Settings", subtitle="Your account details and alert preferences.", icon_name="settings", art=False) }}
+
+  {% if current_user.mobile_e164 and not current_user.mobile_verified %}
+  {% call callout("Verify your mobile number", "warn", "phone") %}
+  <p>We need to verify {{ current_user.mobile_e164|phone }} before we can send you SMS alerts about possible matches.</p>
+  <a class="btn btn-primary btn-sm" href="{{ url_for('notifications.verify_phone') }}">Verify now</a>
+  {% endcall %}
+  {% elif current_user.mobile_verified %}
+  {% call callout(None, "success", "check-circle") %}
+  <p>Mobile number {{ current_user.mobile_e164|phone }} is verified.</p>
+  {% endcall %}
+  {% endif %}
+
+  <section class="card card-pad mt-4" aria-labelledby="avatar-title">
+    <h2 id="avatar-title" class="h3">Profile picture</h2>
+    <div class="avatar-editor">
+      {{ avatar(current_user, "lg", label="Your profile picture" if current_user.avatar_url else None) }}
+      <div class="stack-sm">
+        <form class="avatar-editor__actions" method="post" action="{{ url_for('auth.upload_avatar') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="visually-hidden" for="avatar-input">Choose a profile picture</label>
+          <input id="avatar-input" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" required>
+          <button class="btn btn-primary btn-sm" type="submit">{{ 'Change picture' if current_user.avatar_url else 'Upload picture' }}</button>
+        </form>
+        {% if current_user.avatar_url %}
+        <form method="post" action="{{ url_for('auth.delete_avatar') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline btn-sm" type="submit">Remove picture</button>
+        </form>
+        {% endif %}
+        <p class="field__hint mb-0">JPEG, PNG or WebP. It is cropped to a circle and shown next to your name in messages and on your cases.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card card-pad mt-6" aria-labelledby="account-title">
+    <h2 id="account-title" class="h3">Account</h2>
+    <form class="form" method="post" action="{{ url_for('auth.profile') }}" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="form-grid">
+        {{ form_field(form.full_name, autocomplete="name") }}
+        {{ form_field(form.email, autocomplete="email") }}
+        {{ form_field(form.mobile, class="field--full", hint="Changing your number means you must verify the new number again.", autocomplete="tel", inputmode="tel") }}
+      </div>
+      <fieldset class="stack-sm">
+        <legend>Alerts</legend>
+        {{ form_field(form.sms_opt_in, hint="Needs a verified mobile number. At most " ~ config.SMS_DAILY_MATCH_LIMIT ~ " match SMS per day.") }}
+        {{ form_field(form.push_opt_in, hint="Push alerts also need permission in your browser (\"Enable match alerts\").") }}
+      </fieldset>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Save changes</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card card-pad mt-6" aria-labelledby="password-title">
+    <h2 id="password-title" class="h3">Change password</h2>
+    <form class="form" method="post" action="{{ url_for('auth.change_password') }}" novalidate>
+      {{ password_form.hidden_tag() }}
+      {{ form_field(password_form.current_password, autocomplete="current-password") }}
+      {{ form_field(password_form.new_password, hint=password_hint, autocomplete="new-password") }}
+      {{ form_field(password_form.confirm_new_password, autocomplete="new-password") }}
+      <div class="form-actions">
+        <button class="btn btn-outline" type="submit">Change password</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

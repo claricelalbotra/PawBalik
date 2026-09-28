@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout %}
+{% from "partials/forms.html" import csrf_input, form_errors %}
+{% from "sightings/_form.html" import sighting_fields %}
+{% set nav_active = "match" %}
+{% block title %}Report a Pet Sighting{% endblock %}
+{% block description %}Tell PawBalik where you saw a dog or cat so its owner can find it.{% endblock %}
+
+{% block content %}
+<div class="container container--form">
+  {{ page_header("Report a", "Pet Sighting", icon_name="paw",
+                 subtitle="Saw or found a dog or cat? Pin where you found it. Owners who search for their pet may find it here.") }}
+
+  {% call callout("Your sighting stays private", "info", "lock") %}
+  <p>It is never listed publicly. When an owner's Lost Pet Scanner or our automatic matching
+    finds a possible similarity, only that owner can see it and message you.</p>
+  {% endcall %}
+
+  <form class="form card card-pad mt-4" method="post" enctype="multipart/form-data"
+        action="{{ url_for('sightings.new', scan_id=scan.id) if scan else url_for('sightings.new') }}">
+    {{ csrf_input() }}
+    {% if scan %}<input type="hidden" name="scan_id" value="{{ scan.id }}">{% endif %}
+    {{ form_errors(error_list) }}
+    {{ sighting_fields(values, errors, {
+        'species_options': species_options, 'condition_options': condition_options,
+        'size_options': size_options, 'contact_pref_options': contact_pref_options,
+        'max_photos': max_photos, 'today': today, 'scan_photo_url': scan_photo_url,
+        'id_prefix': 's'}) }}
+    <div class="form-actions form-actions--between">
+      <a class="btn btn-pale" href="{{ url_for('scanner.results', scan_id=scan.id) if scan else url_for('scanner.found') }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ icon('send') }} Submit</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

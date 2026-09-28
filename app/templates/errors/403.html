@@ -1,0 +1,7 @@
+{% extends "errors/error.html" %}
+{% block error_title %}Access denied{% endblock %}
+{% block error_message %}You do not have permission to open this page. If you think this is a mistake, log in with the right account.{% endblock %}
+{% block error_actions %}
+<a class="btn btn-primary" href="{{ url_for('main.index') }}">{{ icon('home') }} Home</a>
+{% if not current_user.is_authenticated %}<a class="btn btn-pale" href="{{ url_for('auth.login') }}">Log In</a>{% endif %}
+{% endblock %}

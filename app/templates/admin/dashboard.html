@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout %}
+{% from "admin/_macros.html" import admin_nav with context %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("Admin", "Dashboard", subtitle="System statistics, moderation and the rescue directory.", icon_name="admin", art=False) }}
+  {{ admin_nav('dashboard') }}
+
+  {% if stats.abuse_reports_open %}
+  <div class="mt-4">
+    {% call callout(stats.abuse_reports_open ~ " open abuse report" ~ ('' if stats.abuse_reports_open == 1 else 's'), "warn", "flag") %}
+    <p><a href="{{ url_for('admin.abuse_reports') }}">Review the abuse reports queue</a></p>
+    {% endcall %}
+  </div>
+  {% endif %}
+
+  <section class="section" aria-labelledby="cases-title">
+    <h2 class="h3" id="cases-title">Cases</h2>
+    <div class="stat-grid stat-grid--wide">
+      <div class="stat"><div class="stat__value">{{ stats.active_lost_cases }}</div><div class="stat__label">Active lost cases</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.found_cases }}</div><div class="stat__label">Marked found</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.closed_cases }}</div><div class="stat__label">Closed</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.reunions }}</div><div class="stat__label">Reunions (ever marked found)</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.hidden_reports }}</div><div class="stat__label">Hidden reports</div></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="sightings-title">
+    <h2 class="h3" id="sightings-title">Pet sightings</h2>
+    <div class="stat-grid stat-grid--wide">
+      <div class="stat"><div class="stat__value">{{ stats.sightings.active }}</div><div class="stat__label">Active</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.sightings.matched }}</div><div class="stat__label">Matched</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.sightings.expired }}</div><div class="stat__label">Expired</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.sightings.hidden }}</div><div class="stat__label">Hidden</div></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="scans-title">
+    <div class="cluster cluster--between">
+      <h2 class="h3 mb-0" id="scans-title">Scans per day</h2>
+      <p class="muted mb-0">{{ stats.scans_last_14_days }} in the last 14 days (manual + background)</p>
+    </div>
+    <ol class="bar-list card card-pad mt-4">
+      {% for day in stats.scans_per_day %}
+      {% set pct = (100 * day.total / max_scans) if max_scans else 0 %}
+      <li class="bar-list__item">
+        <span class="bar-list__label">{{ day.label }}</span>
+        <span class="bar-list__track" aria-hidden="true"><span class="bar-list__bar" style="width: {{ '%.1f'|format(pct) }}%"></span></span>
+        <span class="bar-list__value">{{ day.total }}<span class="visually-hidden"> scans ({{ day.manual }} manual, {{ day.background }} background)</span></span>
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  <section class="section" aria-labelledby="people-title">
+    <h2 class="h3" id="people-title">People &amp; notifications</h2>
+    <div class="stat-grid stat-grid--wide">
+      <div class="stat"><div class="stat__value">{{ stats.users.total }}</div><div class="stat__label">Users ({{ stats.users.deactivated }} deactivated)</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.users.admins }}</div><div class="stat__label">Active admins</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.sms.sent }}</div><div class="stat__label">SMS sent ({{ stats.sms.failed }} failed)</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.push.sent }}</div><div class="stat__label">Push sent ({{ stats.push.failed }} failed)</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.rescue_requests }}</div><div class="stat__label">Rescue summaries</div></div>
+      <div class="stat"><div class="stat__value">{{ stats.providers.active }}</div><div class="stat__label">Active providers ({{ stats.providers.sample }} sample)</div></div>
+    </div>
+  </section>
+
+  <div class="grid-2">
+    <section aria-labelledby="sms-title">
+      <div class="cluster cluster--between">
+        <h2 class="h4 mb-0" id="sms-title">Recent SMS</h2>
+        <a href="{{ url_for('admin.logs', kind='sms') }}">All SMS logs</a>
+      </div>
+      <div class="table-wrap mt-2">
+        <table class="table">
+          <thead><tr><th scope="col">When</th><th scope="col">To</th><th scope="col">Purpose</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            {% for row in recent_sms %}
+            <tr><td>{{ row.created_at|datetime }}</td><td>{{ row.to_number|masked_phone }}</td><td>{{ row.purpose|label('SmsPurpose') }}</td><td><span class="chip chip--{{ 'found' if row.status == 'sent' else 'warn' }}">{{ row.status }}</span></td></tr>
+            {% else %}
+            <tr><td colspan="4" class="muted">No SMS sent yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section aria-labelledby="push-title">
+      <div class="cluster cluster--between">
+        <h2 class="h4 mb-0" id="push-title">Recent push notifications</h2>
+        <a href="{{ url_for('admin.logs', kind='push') }}">All push logs</a>
+      </div>
+      <div class="table-wrap mt-2">
+        <table class="table">
+          <thead><tr><th scope="col">When</th><th scope="col">Title</th><th scope="col">Status</th></tr></thead>
+          <tbody>
+            {% for row in recent_push %}
+            <tr><td>{{ row.created_at|datetime }}</td><td>{{ row.title }}</td><td><span class="chip chip--{{ 'found' if row.status == 'sent' else 'warn' }}">{{ row.status }}</span></td></tr>
+            {% else %}
+            <tr><td colspan="3" class="muted">No push notifications yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import form_field %}
+{% block title %}Sign Up{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="auth-layout">
+    <section class="card auth-card" aria-labelledby="register-title">
+      <h1 id="register-title">Join <span class="accent">PawBalik</span></h1>
+      <p class="muted">One account lets you report a lost pet, help as a finder and message within cases.</p>
+      <form class="form" method="post" action="{{ url_for('auth.register', next=request.args.get('next')) }}" novalidate>
+        {{ form.hidden_tag() }}
+        {{ form_field(form.full_name, autocomplete="name") }}
+        {{ form_field(form.email, autocomplete="email", inputmode="email") }}
+        {{ form_field(form.mobile, hint="Philippine mobile number, e.g. 0917 123 4567. We will send a code to verify it.", autocomplete="tel", inputmode="tel", placeholder="09XX XXX XXXX") }}
+        {{ form_field(form.password, hint=password_hint, autocomplete="new-password") }}
+        {{ form_field(form.confirm_password, autocomplete="new-password") }}
+        <div class="field{% if form.consent.errors %} has-error{% endif %}">
+          <label class="checkbox" for="{{ form.consent.id }}">
+            {{ form.consent(required=True, **({'aria-invalid': 'true', 'aria-describedby': 'consent-error'} if form.consent.errors else {})) }}
+            <span>{{ S.PRIVACY_CONSENT_LABEL }} <a href="{{ url_for('main.privacy') }}" target="_blank" rel="noopener">Read the Privacy Notice</a><span class="req" aria-hidden="true">*</span></span>
+          </label>
+          {% if form.consent.errors %}<p class="field__error" id="consent-error">{{ form.consent.errors|join(' ') }}</p>{% endif %}
+        </div>
+        <button class="btn btn-primary btn-block btn-lg" type="submit">Create Account</button>
+      </form>
+      <p class="center mt-4 mb-0">Already have an account? <a href="{{ url_for('auth.login', next=request.args.get('next')) }}">Log in</a></p>
+    </section>
+    <aside class="auth-aside hero__art">
+      <img src="{{ url_for('static', filename='images/hero-pets.png') }}" alt="" width="520" height="440">
+    </aside>
+  </div>
+</div>
+{% endblock %}

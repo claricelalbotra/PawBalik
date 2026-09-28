@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import status_badge, callout, map_buttons, disclaimer, empty_state, avatar %}
+{% from "partials/cards.html" import pet_card %}
+{% from "partials/forms.html" import csrf_input, input_field %}
+{% block title %}{{ report.pet_name }} · {{ report.case_number }}{% endblock %}
+{% block description %}Lost {{ report.species }} "{{ report.pet_name }}" ({{ report.case_number }}) last seen {{ report.last_seen_place or 'in Tacloban City' }}. Help bring them home.{% endblock %}
+{% block content %}
+<div class="container case-page">
+
+  {% if report.is_hidden and can_manage %}
+  {% call callout("This case is hidden by a moderator", "warn", "eye-off") %}
+  <p class="mb-0">It is not listed publicly and cannot be searched.{% if report.hidden_reason %} Reason: {{ report.hidden_reason }}{% endif %}</p>
+  {% endcall %}
+  {% endif %}
+
+  <header class="case-header">
+    <div>
+      <p class="case-header__number"><span class="chip">{{ report.case_number }}</span> {{ status_badge(report.status) }}</p>
+      <h1 class="case-header__title">{{ report.pet_name }}</h1>
+      <p class="muted mb-0">
+        {{ report.species|label('Species') }} · {{ report.breed }} · {{ report.colors }}
+        {% if report.status == 'lost' %}· Lost {{ report.last_seen_at|timeago }}{% endif %}
+      </p>
+    </div>
+    {% if can_manage and report.status != 'closed' %}
+    <a class="btn btn-outline btn-sm" href="{{ url_for('pets.edit', report_id=report.id) }}">{{ icon('edit') }} Edit report</a>
+    {% endif %}
+  </header>
+
+  {% if report.status == 'found' %}
+  {% call callout("This pet has been marked as found", "success", "check-circle") %}
+  <p class="mb-0">Thank you to everyone who helped. No further sightings are needed for this case.</p>
+  {% endcall %}
+  {% elif report.status == 'closed' %}
+  {% call callout("This case is closed", "info", "info") %}
+  <p class="mb-0">The owner closed this case. It is kept for reference only.</p>
+  {% endcall %}
+  {% endif %}
+
+  {% if can_manage %}
+  <section class="card card-pad owner-panel mt-4" aria-labelledby="owner-panel-title">
+    <div class="cluster cluster--between">
+      <h2 class="h3 mb-0" id="owner-panel-title">{{ icon('user') }} {{ 'Owner panel' if is_owner else 'Moderator view' }}</h2>
+      <p class="muted mb-0">Only {{ 'you' if is_owner else 'the owner' }} and administrators see this panel.</p>
+    </div>
+    <div class="owner-panel__grid mt-4">
+      <div class="stack-sm">
+        <h3 class="h4">Case status</h3>
+        {% if status_actions %}
+        <form class="form" method="post" action="{{ url_for('cases.change_status', report_id=report.id) }}">
+          {{ csrf_input() }}
+          {{ input_field("note", "Note (optional)", type="textarea", hint="Shown to people you are messaging about this case, e.g. “Reunited at the barangay hall.”", maxlength=255, rows=2) }}
+          <div class="btn-row">
+            {% for status, label, css, icon_name in status_actions %}
+            <button class="btn {{ css }}" type="submit" name="status" value="{{ status }}">{{ icon(icon_name) }} {{ label }}</button>
+            {% endfor %}
+          </div>
+        </form>
+        {% else %}
+        <p class="muted mb-0">This case is closed. No further status changes are possible.</p>
+        {% endif %}
+      </div>
+      <div class="stack-sm">
+        <h3 class="h4">Search for your pet</h3>
+        {% if report.status == 'lost' and is_owner %}
+        <p class="muted mb-0">Compare your pet's photo with private sightings submitted by finders.</p>
+        <a class="btn btn-green" href="{{ url_for('scanner.lost', lost_report_id=report.id) }}">{{ icon('scan') }} Run Lost Pet Scanner with this report</a>
+        {% else %}
+        <p class="muted mb-0">Scanning is available while the case is still lost.</p>
+        {% endif %}
+        {% if is_owner %}{% include "notifications/_enable_alerts.html" ignore missing %}{% endif %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="split case-layout mt-4">
+    <div class="stack-lg">
+      <section class="card case-gallery" data-gallery aria-label="Photos of {{ report.pet_name }}">
+        {% if photos %}
+        <a class="case-gallery__main" href="{{ photos[0].full }}" target="_blank" rel="noopener" data-gallery-link>
+          <img src="{{ photos[0].full }}" alt="Photo 1 of {{ report.pet_name }}" data-gallery-main>
+        </a>
+        {% if photos|length > 1 %}
+        <ul class="case-gallery__thumbs" role="list">
+          {% for photo in photos %}
+          <li>
+            <a class="case-gallery__thumb{% if loop.first %} is-active{% endif %}" href="{{ photo.full }}" target="_blank" rel="noopener"
+               data-gallery-thumb data-full="{{ photo.full }}" data-alt="Photo {{ loop.index }} of {{ report.pet_name }}"
+               aria-label="Show photo {{ loop.index }}"{% if loop.first %} aria-current="true"{% endif %}>
+              <img src="{{ photo.thumb }}" alt="" loading="lazy">
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        {% else %}
+        <div class="pet-card__placeholder case-gallery__empty">{{ icon('paw') }}</div>
+        {% endif %}
+      </section>
+
+      <section class="card card-pad" aria-labelledby="about-title">
+        <h2 class="h3" id="about-title">About {{ report.pet_name }}</h2>
+        <dl class="details-list">
+          <dt>Type</dt><dd>{{ report.species|label('Species') }}</dd>
+          <dt>Breed</dt><dd>{{ report.breed }}</dd>
+          <dt>Fur color / pattern</dt><dd>{{ report.colors }}</dd>
+          <dt>Size</dt><dd>{{ report.size|label('PetSize') }}</dd>
+          <dt>Sex</dt><dd>{{ report.sex|label('PetSex') }}</dd>
+          {% if report.age_text %}<dt>Estimated age</dt><dd>{{ report.age_text }}</dd>{% endif %}
+          <dt>Case number</dt><dd>{{ report.case_number }}</dd>
+          <dt>Reported</dt><dd>{{ report.created_at|date }}</dd>
+        </dl>
+        {% if report.identifying_features %}
+        <h3 class="h4 mt-4">Identifying features</h3>
+        <p class="prewrap mb-0">{{ report.identifying_features }}</p>
+        {% endif %}
+      </section>
+
+      {% if ai_notes %}
+      <section class="card card-pad" aria-labelledby="ai-title">
+        <h2 class="h3" id="ai-title">{{ icon('sparkle') }} AI notes</h2>
+        <p class="muted">Generated automatically from the main photo to help matching. They may be wrong; the owner's details above come first.</p>
+        <dl class="details-list">
+          {% for label, value in ai_notes.items() %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+        </dl>
+      </section>
+      {% endif %}
+
+      <section class="card card-pad" aria-labelledby="timeline-title">
+        <h2 class="h3" id="timeline-title">{{ icon('clock') }} Status timeline</h2>
+        <ol class="timeline">
+          {% for entry in history %}
+          <li class="timeline__item">
+            <strong>
+              {%- if entry.from_status is none %}Report filed · {{ entry.to_status|label('ReportStatus') }}
+              {%- elif entry.to_status == 'found' %}Marked as Found
+              {%- elif entry.to_status == 'closed' %}Case closed
+              {%- else %}{{ entry.from_status|label('ReportStatus') }} → {{ entry.to_status|label('ReportStatus') }}{% endif -%}
+            </strong>
+            <div class="timeline__meta"><time datetime="{{ entry.changed_at|iso_local }}">{{ entry.changed_at|datetime }}</time></div>
+            {% if entry.note and show_notes and entry.from_status is not none %}<p class="mb-0 prewrap">{{ entry.note }}</p>{% endif %}
+          </li>
+          {% endfor %}
+        </ol>
+      </section>
+    </div>
+
+    <aside class="stack-lg" aria-label="Case contact and location">
+      <section class="card card-pad" aria-labelledby="last-seen-title">
+        <h2 class="h3" id="last-seen-title">{{ icon('map-pin') }} Last seen</h2>
+        <dl class="details-list">
+          {% if report.last_seen_place %}<dt>Place</dt><dd>{{ report.last_seen_place }}</dd>{% endif %}
+          <dt>Date</dt><dd><time datetime="{{ report.last_seen_at|iso_local }}">{{ report.last_seen_at|datetime }}</time></dd>
+          <dt>Pin</dt><dd>{{ '%.5f'|format(report.last_seen_lat) }}, {{ '%.5f'|format(report.last_seen_lng) }}</dd>
+        </dl>
+        <div class="mt-4">{{ map_buttons(report.last_seen_lat, report.last_seen_lng) }}</div>
+      </section>
+
+      {% if report.reward_amount is not none or report.reward_text %}
+      <section class="card card--pale card-pad" aria-labelledby="reward-title">
+        <h2 class="h3" id="reward-title">{{ icon('gift') }} Reward</h2>
+        {% if report.reward_amount is not none %}<p class="reward-amount mb-0">{{ report.reward_amount|peso }}</p>{% endif %}
+        {% if report.reward_text %}<p class="mb-0">{{ report.reward_text }}</p>{% endif %}
+      </section>
+      {% endif %}
+
+      <section class="card card-pad" aria-labelledby="contact-title">
+        <h2 class="h3" id="contact-title">{{ icon('user') }} Contact</h2>
+        <dl class="details-list">
+          <dt>Owner</dt><dd><span class="name-with-avatar">{{ avatar(report.owner, "sm") }} {{ contact.name }}</span></dd>
+          {% if contact.phone %}
+          <dt>Phone</dt>
+          <dd>{% if contact.tel %}<a href="{{ contact.tel }}">{{ contact.phone }}</a>{% else %}{{ contact.phone }}{% endif %}
+            {% if contact.phone_masked %}<span class="field__hint">Hidden by the owner. Use “Message Owner”.</span>{% endif %}</dd>
+          {% endif %}
+          {% if contact.email %}<dt>Email</dt><dd>{{ contact.email }}</dd>{% endif %}
+        </dl>
+        <div class="stack-sm mt-4">
+          {% if show_message_button %}
+          <a class="btn btn-primary btn-block" href="{{ url_for('messages.new', lost_report_id=report.id) }}">{{ icon('chat') }} Message Owner</a>
+          {% if not current_user.is_authenticated %}<p class="field__hint center mb-0">You will be asked to log in first.</p>{% endif %}
+          {% endif %}
+          <a class="btn btn-pale btn-block" href="{{ url_for('rescue.request_help', lost_report_id=report.id) }}">{{ icon('rescue') }} Request Rescue Help</a>
+        </div>
+      </section>
+
+      {% call callout("Found this pet?", "success", "paw") %}
+      <p class="mb-0">Message the owner and check the identifying features together. If you are not sure, use <a href="{{ url_for('scanner.found') }}">Match a Found Pet</a>.</p>
+      {% endcall %}
+    </aside>
+  </div>
+
+  {% if can_manage %}
+  <section class="section mt-6" aria-labelledby="matches-title">
+    <h2 id="matches-title">{{ icon('sparkle') }} Possible matches found so far</h2>
+    {% if matches %}
+    <p class="muted">Private pet sightings that look similar to {{ report.pet_name }}. Only you can see them.</p>
+    {{ disclaimer() }}
+    <div class="pet-grid mt-4">
+      {% for card in matches %}{{ pet_card(card, message_label="Message finder") }}{% endfor %}
+    </div>
+    {% else %}
+    {% call empty_state("No possible matches yet", "New sightings are compared with your report automatically and we will alert you when a possible match appears.", url_for('scanner.lost', lost_report_id=report.id) if (is_owner and report.status == 'lost') else None, "Run Lost Pet Scanner", icon_name="search-paw") %}{% endcall %}
+    {% endif %}
+  </section>
+
+  {% if is_owner %}
+  <section class="section" aria-labelledby="conversations-title">
+    <h2 id="conversations-title">{{ icon('chat') }} Conversations</h2>
+    {% if conversations %}
+    <ul class="conversation-list card">
+      {% for conv in conversations %}
+      <li class="conversation-list__item{% if conv.unread %} is-unread{% endif %}">
+        <a href="{{ conv.url }}">
+          <strong>{{ conv.other_name }}</strong>
+          {% if conv.has_sighting %}<span class="chip chip--sighting">Shared a sighting</span>{% endif %}
+          <span class="muted">{{ conv.last_activity|timeago }}</span>
+          {% if conv.unread %}<span class="badge-count">{{ conv.unread }}<span class="visually-hidden"> unread</span></span>{% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="muted">No one has messaged you about this case yet. Finders can reach you with “Message Owner”.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/lost_pet.js') }}"></script>
+{% endblock %}

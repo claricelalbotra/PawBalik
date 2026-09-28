@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "partials/forms.html" import form_field %}
+{% block title %}Log In{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="auth-layout">
+    <section class="card auth-card" aria-labelledby="login-title">
+      <h1 id="login-title">Welcome <span class="accent">back</span></h1>
+      <p class="muted">Log in to report a lost pet, scan a found pet and message owners.</p>
+      <form class="form" method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}" novalidate>
+        {{ form.hidden_tag() }}
+        {{ form_field(form.email, autocomplete="email", inputmode="email") }}
+        {{ form_field(form.password, autocomplete="current-password") }}
+        {{ form_field(form.remember) }}
+        <button class="btn btn-primary btn-block btn-lg" type="submit">Log In</button>
+      </form>
+      <p class="center mt-4 mb-0">New to PawBalik? <a href="{{ url_for('auth.register', next=request.args.get('next')) }}">Create an account</a></p>
+    </section>
+    <aside class="auth-aside hero__art">
+      <img src="{{ url_for('static', filename='images/hero-pets.png') }}" alt="" width="520" height="440">
+    </aside>
+  </div>
+</div>
+{% endblock %}

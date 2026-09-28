@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout, empty_state %}
+{% from "rescue/_provider_card.html" import provider_card %}
+{% block title %}Find Rescue Help{% endblock %}
+{% block description %}Rescuers, veterinary clinics and animal shelters near you in Tacloban City, sorted by distance.{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("Find", "Rescue Help", subtitle="Rescuers, veterinary clinics and shelters near you in Tacloban City. Call them, open them in Google Maps, or get directions.", icon_name="rescue") }}
+
+  <div class="emergency-note" role="note">
+    {% call callout("Emergencies", "danger", "warning") %}
+    <p>{{ S.EMERGENCY_NOTE }}</p>
+    {% endcall %}
+  </div>
+
+  <form class="card card-pad rescue-filters mt-4" method="get" action="{{ url_for('rescue.directory') }}" data-rescue-filters role="search" aria-label="Filter providers">
+    {% for key, value in keep_args.items() %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+    <input type="hidden" name="near" value="{{ near }}" data-near-input>
+    <div class="rescue-filters__row">
+      <div class="field">
+        <label class="field__label" for="f-type">Type</label>
+        <select class="input" id="f-type" name="type" data-auto-submit>
+          <option value="">All types</option>
+          {% for value, label in type_choices %}
+          <option value="{{ value }}"{% if provider_type == value %} selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field__label" for="f-open">Hours</label>
+        <select class="input" id="f-open" name="open" data-auto-submit>
+          <option value="">Any time</option>
+          <option value="now"{% if open_filter == 'now' %} selected{% endif %}>Open now</option>
+          <option value="24_7"{% if open_filter == '24_7' %} selected{% endif %}>Open 24/7</option>
+        </select>
+      </div>
+      <div class="rescue-filters__actions btn-row">
+        <button class="btn btn-outline" type="button" data-use-my-location>{{ icon('crosshair') }} Use my current location</button>
+        <button class="btn btn-primary" type="submit">{{ icon('filter') }} Apply</button>
+      </div>
+    </div>
+    <p class="rescue-filters__status muted mb-0" data-location-status role="status" aria-live="polite">
+      {% if origin %}
+        Sorted by distance from {{ origin.label }}.
+        {% if origin_outside %}<strong>This point is outside {{ config.SERVICE_AREA_NAME }}.</strong>{% endif %}
+        <a href="{{ url_for('rescue.directory', type=provider_type or None, open=open_filter or None) }}">Clear location</a>
+      {% else %}
+        Tip: tap "Use my current location" to sort providers by distance.
+      {% endif %}
+    </p>
+  </form>
+
+  <section class="section" aria-labelledby="providers-title">
+    <div class="cluster cluster--between">
+      <h2 class="h3 mb-0" id="providers-title">{{ providers|length }} provider{{ '' if providers|length == 1 else 's' }}</h2>
+      <p class="muted mb-0">Listings marked <span class="chip chip--sample">Sample</span> are demonstration data, not real businesses.</p>
+    </div>
+
+    {% if providers %}
+    <div class="provider-list mt-4">
+      {% for p in providers %}{{ provider_card(p) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="mt-4">
+      {{ empty_state("No providers match these filters", "Try another type, or clear the hours filter. Hours shown as \"not verified\" are hidden by the Open now filter.", url_for('rescue.directory'), "Show all providers", icon_name="rescue") }}
+    </div>
+    {% endif %}
+  </section>
+
+  {% if current_user.is_authenticated %}
+  <section class="card card--pale card-pad" aria-labelledby="request-help-title">
+    <h2 class="h4" id="request-help-title">{{ icon('clipboard') }} Need to describe an animal to a rescuer?</h2>
+    <p class="mb-0">Open your case or sighting and choose <strong>Request Rescue Help</strong>. PawBalik builds a short summary with the location and a Google Maps link that you can copy and send.</p>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/rescue.js') }}"></script>{% endblock %}

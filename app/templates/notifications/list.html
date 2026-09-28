@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state, callout %}
+{% from "partials/forms.html" import csrf_input %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+{%- set type_icons = {'possible_match': 'search-paw', 'new_message': 'chat', 'case_status_changed': 'clipboard'} -%}
+<div class="container container--narrow">
+  {% call page_header("Your", "Notifications", subtitle="Possible matches, new messages and case updates.", icon_name="bell", art=False) %}{% endcall %}
+
+  {% if current_user.mobile_e164 and not current_user.mobile_verified %}
+  {% call callout("Get SMS alerts too", "info", "phone") %}
+  <p>Verify your mobile number to receive an SMS when a possible match is found.</p>
+  <a class="btn btn-green btn-sm" href="{{ url_for('notifications.verify_phone', next=request.path) }}">Verify my number</a>
+  {% endcall %}
+  {% endif %}
+
+  {% include "notifications/_enable_alerts.html" %}
+
+  <section class="notif-panel card mt-4" aria-labelledby="notif-list-title" data-notification-list>
+    <div class="notif-panel__header cluster cluster--between">
+      <h2 class="h4 mb-0" id="notif-list-title">
+        All notifications
+        <span class="chip chip--active notif-unread-chip" data-unread-chip{% if not unread %} hidden{% endif %}><span data-unread-label>{{ unread }}</span> unread</span>
+      </h2>
+      <form method="post" action="{{ url_for('notifications.mark_all_read') }}" data-mark-all-form{% if not unread %} hidden{% endif %}>
+        {{ csrf_input() }}
+        <button class="btn btn-pale btn-sm" type="submit">{{ icon('check') }} Mark all as read</button>
+      </form>
+    </div>
+
+    {% if notifications %}
+    <ul class="notif-list">
+      {% for n in notifications %}
+      <li class="notif-item{% if not n.is_read %} is-unread{% endif %}" data-notification-id="{{ n.id }}">
+        <span class="notif-item__icon notif-item__icon--{{ n.type }}" aria-hidden="true">{{ icon(type_icons.get(n.type, 'bell')) }}</span>
+        <div class="notif-item__main">
+          <a class="notif-item__title" href="{{ url_for('notifications.open', notification_id=n.id) }}">
+            {%- if not n.is_read %}<span class="visually-hidden" data-unread-sr>Unread: </span>{% endif %}{{ n.title -}}
+          </a>
+          {% if n.body %}<p class="notif-item__body">{{ n.body }}</p>{% endif %}
+          <p class="notif-item__meta">
+            <time datetime="{{ n.created_at|iso_local }}" title="{{ n.created_at|datetime }}">{{ n.created_at|timeago }}</time>
+            · {{ n.type|label('NotificationEvent') }}
+          </p>
+        </div>
+        {% if not n.is_read %}
+        <button class="btn btn-link btn-sm notif-item__mark" type="button" data-mark-read="{{ n.id }}" hidden>Mark as read</button>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+
+    {% if pages > 1 %}
+    <nav class="pagination" aria-label="Notification pages">
+      {% if page > 1 %}<a class="btn btn-pale btn-sm" href="{{ url_for('notifications.index', page=page - 1) }}">{{ icon('arrow-left') }} Newer</a>{% endif %}
+      <span class="muted">Page {{ page }} of {{ pages }}</span>
+      {% if page < pages %}<a class="btn btn-pale btn-sm" href="{{ url_for('notifications.index', page=page + 1) }}">Older {{ icon('arrow-right') }}</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    {{ empty_state("No notifications yet", "When someone finds a possible match for your lost pet or messages you about a case, it will show up here.", url_for('pets.new'), "Report a Lost Pet", icon_name="bell") }}
+    {% endif %}
+  </section>
+
+  <p class="muted mt-4 small">Similarity alerts are visual indicators only. They never confirm that an animal is yours. Always verify identifying details before a handover.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+{% endblock %}

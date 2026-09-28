@@ -1,0 +1,63 @@
+{#- Provider card for the Rescue Directory (SPEC 5.8).
+    `p` is a dict from app.routes.rescue.provider_view(); every link in it is already
+    sanitized (tel: digits only, Facebook http/https only). -#}
+{% macro open_chip(p) -%}
+{% if p.is_24_7 %}
+<span class="chip chip--found">{{ icon('clock') }} Open 24/7</span>
+{% elif p.open_now is sameas true %}
+<span class="chip chip--found">{{ icon('clock') }} Open now</span>
+{% elif p.open_now is sameas false %}
+<span class="chip chip--closed">{{ icon('clock') }} Closed now</span>
+{% else %}
+<span class="chip chip--warn" title="We could not read these opening hours. Call ahead.">{{ icon('clock') }} Hours not verified</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro provider_card(p, show_detail_link=True, heading_level=2) -%}
+<article class="card provider-card{% if p.is_sample %} provider-card--sample{% endif %}" aria-labelledby="provider-{{ p.id }}-name">
+  <div class="provider-card__body">
+    <div class="provider-card__head">
+      <span class="provider-card__icon provider-card__icon--{{ p.type }}" aria-hidden="true">{{ icon({'vet': 'heart', 'shelter': 'house-paw', 'rescuer': 'rescue'}.get(p.type, 'paw')) }}</span>
+      <div>
+        <h{{ heading_level }} class="provider-card__title" id="provider-{{ p.id }}-name">
+          {% if show_detail_link %}<a href="{{ p.detail_url }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}
+        </h{{ heading_level }}>
+        <div class="cluster provider-card__chips">
+          <span class="chip provider-type provider-type--{{ p.type }}">{{ p.type_label }}</span>
+          {% if p.is_sample %}<span class="chip chip--sample" title="Sample data for demonstration - not a real provider">Sample</span>{% endif %}
+          {{ open_chip(p) }}
+        </div>
+      </div>
+      {% if p.distance_km is not none %}
+      <p class="provider-card__distance"><strong>{{ p.distance_km|km }}</strong><span class="visually-hidden"> away</span></p>
+      {% endif %}
+    </div>
+
+    <ul class="provider-card__meta">
+      {% if p.address or p.barangay %}
+      <li>{{ icon('map-pin') }}<span>{{ p.address or '' }}{% if p.address and p.barangay %}, {% endif %}{% if p.barangay %}Brgy. {{ p.barangay }}{% endif %}</span></li>
+      {% endif %}
+      <li>{{ icon('clock') }}<span>{{ p.hours_label }}</span></li>
+      {% if p.phones %}
+      <li>{{ icon('phone') }}<span>{% for ph in p.phones %}{{ ph.display }}{% if not loop.last %} · {% endif %}{% endfor %}</span></li>
+      {% endif %}
+      {% if p.services %}
+      <li>{{ icon('heart') }}<span>{{ p.services }}</span></li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="provider-card__actions btn-row">
+    {% for ph in p.phones if ph.tel %}
+    <a class="btn btn-primary btn-sm" href="{{ ph.tel }}">{{ icon('phone') }} Call{% if p.phones|length > 1 %} {{ ph.display }}{% endif %}</a>
+    {% endfor %}
+    {% if p.maps_url %}
+    <a class="btn btn-outline btn-sm" href="{{ p.maps_url }}" target="_blank" rel="noopener">{{ icon('map-pin') }} Open in Google Maps</a>
+    <a class="btn btn-green btn-sm" href="{{ p.directions_url }}" target="_blank" rel="noopener">{{ icon('directions') }} Get Directions</a>
+    {% endif %}
+    {% if p.facebook_url %}
+    <a class="btn btn-pale btn-sm" href="{{ p.facebook_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ icon('external') }} Facebook</a>
+    {% endif %}
+  </div>
+</article>
+{%- endmacro %}

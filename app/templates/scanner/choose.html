@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout, upload_tips %}
+{% from "partials/forms.html" import csrf_input %}
+{% set nav_active = "match" %}
+{% block title %}{% if mode == 'found' %}Match a Found Pet{% elif mode == 'lost' %}Scan for My Lost Pet{% else %}Pet Scanner{% endif %}{% endblock %}
+{% block description %}Upload or capture a photo of a dog or cat to find possibly similar pets in Tacloban City.{% endblock %}
+
+{% block content %}
+<div class="container container--narrow">
+{% if not mode %}
+  {{ page_header("Pet", "Scanner", icon_name="scan",
+                 subtitle="Compare a photo of a dog or cat with PawBalik cases. For dogs and cats only.") }}
+  <div class="tiles scanner-choice">
+    <a class="tile tile--link" href="{{ url_for('scanner.found') }}">
+      <span class="tile__icon">{{ icon('search-paw') }}</span>
+      <span class="tile__title">Match a Found Pet</span>
+      <span class="tile__text">Found or saw a dog or cat? Compare its photo with lost pet reports to find its owner.</span>
+      <span class="btn btn-green">Start {{ icon('arrow-right') }}</span>
+    </a>
+    <a class="tile tile--link tile--blue" href="{{ url_for('scanner.lost') }}">
+      <span class="tile__icon">{{ icon('paw') }}</span>
+      <span class="tile__title">Scan for My Lost Pet</span>
+      <span class="tile__text">Lost your pet? Compare its photo with private sightings submitted by finders.</span>
+      <span class="btn btn-green">Start {{ icon('arrow-right') }}</span>
+    </a>
+  </div>
+{% else %}
+  {% if mode == 'found' %}
+  {{ page_header("Match a", "Found Pet", icon_name="paw",
+                 subtitle="Upload or take a photo of the dog or cat you found. We will look for possibly similar lost pet reports.") }}
+  {% else %}
+  {{ page_header("Scan for", "My Lost Pet", icon_name="paw",
+                 subtitle="Compare your pet's photo with private sightings from finders in Tacloban City.") }}
+  {% endif %}
+
+  {% if error %}
+  <div role="alert">
+    {% call callout("We could not scan this photo", "danger", "warning") %}<p>{{ error }}</p>{% endcall %}
+  </div>
+  {% endif %}
+
+  <div class="card card--big scanner" data-scanner data-mode="{{ mode }}"
+       data-api="{{ url_for('scanner.api_create') }}" data-stages='{{ stages|tojson }}'>
+    <form class="scanner__form" method="post" action="{{ url_for('scanner.submit') }}"
+          enctype="multipart/form-data" data-scan-form>
+      {{ csrf_input() }}
+      <input type="hidden" name="mode" value="{{ mode }}">
+      <input type="hidden" name="lat" value="" data-scan-lat>
+      <input type="hidden" name="lng" value="" data-scan-lng>
+
+      {% if mode == 'lost' %}
+      <fieldset class="field scan-reports">
+        <legend class="field__label">Which pet are you looking for?</legend>
+        {% if reports %}
+        <div class="scan-reports__list">
+          {% for r in reports %}
+          <label class="scan-report">
+            <input type="radio" name="lost_report_id" value="{{ r.id }}" data-has-photo="{{ 1 if r.has_photo else 0 }}"{% if r.id == selected_report_id %} checked{% endif %}>
+            {% if r.thumb %}<img class="scan-report__thumb" src="{{ r.thumb }}" alt="" width="56" height="56" loading="lazy">
+            {% else %}<span class="scan-report__thumb scan-report__thumb--empty">{{ icon(r.species) }}</span>{% endif %}
+            <span class="scan-report__text">
+              <strong>{{ r.name }}</strong>
+              <span class="muted small">{{ r.case_number }}{% if not r.has_photo %} · no photo{% endif %}</span>
+            </span>
+          </label>
+          {% endfor %}
+          <label class="scan-report">
+            <input type="radio" name="lost_report_id" value="" data-has-photo="0"{% if selected_report_id is none %} checked{% endif %}>
+            <span class="scan-report__thumb scan-report__thumb--empty">{{ icon('image') }}</span>
+            <span class="scan-report__text"><strong>Just use a new photo</strong>
+              <span class="muted small">Not linked to a report</span></span>
+          </label>
+        </div>
+        <div class="scan-reports__action">
+          <button class="btn btn-primary" type="submit" name="use_report_photo" value="1" data-scan-report-photo>
+            {{ icon('scan') }} Scan with the report photo
+          </button>
+          <p class="field__hint mb-0">…or upload or capture a new photo of your pet below.</p>
+        </div>
+        {% else %}
+        {% call callout("You have no active lost pet reports", "info", "info") %}
+        <p>You can still scan a photo of your pet below. Filing a report also lets finders who
+          scan a found pet see your case. <a href="{{ url_for('pets.new') }}">Report a lost pet</a></p>
+        {% endcall %}
+        {% endif %}
+      </fieldset>
+      {% endif %}
+
+      <div class="tiles" data-scan-choose>
+        <div class="tile">
+          <span class="tile__icon">{{ icon('image') }}</span>
+          <h2 class="tile__title">Upload Photo</h2>
+          <p class="tile__text">Choose a photo from your device.</p>
+          <label class="btn btn-green" for="scan-upload">{{ icon('upload') }} Upload</label>
+          <input class="scan-file" id="scan-upload" type="file" name="photo"
+                 accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*" data-scan-input>
+        </div>
+        <div class="tile">
+          <span class="tile__icon">{{ icon('camera') }}</span>
+          <h2 class="tile__title">Capture Photo</h2>
+          <p class="tile__text">Take a photo using your camera.</p>
+          <label class="btn btn-green" for="scan-capture">{{ icon('camera') }} Capture</label>
+          <input class="scan-file" id="scan-capture" type="file" name="photo" accept="image/*"
+                 capture="environment" data-scan-input>
+          <button class="btn btn-link btn-sm" type="button" data-live-camera hidden>Use live camera preview</button>
+        </div>
+      </div>
+
+      <section class="scan-camera" data-camera hidden aria-label="Live camera">
+        <div class="viewfinder">
+          <div class="viewfinder__media"><video data-camera-video playsinline muted autoplay></video></div>
+          <span class="viewfinder__corner viewfinder__corner--tl" aria-hidden="true"></span>
+          <span class="viewfinder__corner viewfinder__corner--tr" aria-hidden="true"></span>
+          <span class="viewfinder__corner viewfinder__corner--bl" aria-hidden="true"></span>
+          <span class="viewfinder__corner viewfinder__corner--br" aria-hidden="true"></span>
+        </div>
+        <div class="btn-row scan-camera__actions">
+          <button class="btn btn-pale" type="button" data-camera-cancel>Cancel</button>
+          <button class="btn btn-primary btn-lg scan-camera__shutter" type="button" data-camera-shutter>
+            {{ icon('camera') }} Take photo
+          </button>
+        </div>
+      </section>
+
+      <p class="tip scan-tip">{{ icon('paw') }}<span><strong>Tip:</strong> {{ S.SCAN_TIP }}</span></p>
+
+      <div class="scan-options">
+        <button class="btn btn-outline btn-sm" type="button" data-scan-locate hidden>
+          {{ icon('crosshair') }} Use my current location
+        </button>
+        <span class="muted small" data-scan-location-status role="status">
+          {%- if mode == 'lost' %}Results are ranked by distance from where your pet was last seen.{% endif -%}
+        </span>
+      </div>
+
+      <div class="scan-nojs" data-scan-nojs>
+        <button class="btn btn-primary btn-lg" type="submit">{{ icon('scan') }} Start scan</button>
+      </div>
+    </form>
+
+    {% include "scanner/scan.html" %}
+  </div>
+
+  <div class="mt-4">{{ upload_tips() }}</div>
+  {% if mode == 'found' %}
+  <p class="muted small mt-4">Only public lost pet reports are searched. {{ S.SPECIES_NOTE }}. {{ S.SERVICE_AREA_NOTE }}</p>
+  {% else %}
+  <p class="muted small mt-4">Only active sightings are searched. Sightings you open are recorded to protect finders' privacy. {{ S.SPECIES_NOTE }}.</p>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if mode %}<script type="module" src="{{ url_for('static', filename='js/scanner.js') }}"></script>{% endif %}
+{% endblock %}

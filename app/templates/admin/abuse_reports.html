@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state %}
+{% from "admin/_macros.html" import admin_nav, pagination with context %}
+{% block title %}Abuse Reports{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("Abuse", "Reports", subtitle="Reports sent with \"Report this user\" from a conversation. Admins do not read private chats; decide from the reason and the user's history.", icon_name="flag", art=False) }}
+  {{ admin_nav('abuse') }}
+
+  <nav class="admin-tabs mt-4" aria-label="Filter by status">
+    <a class="btn btn-sm {{ 'btn-primary' if status == '' else 'btn-pale' }}" href="{{ url_for('admin.abuse_reports', status='all') }}"{% if status == '' %} aria-current="page"{% endif %}>All</a>
+    {% for value, label in status_choices %}
+    <a class="btn btn-sm {{ 'btn-primary' if status == value else 'btn-pale' }}" href="{{ url_for('admin.abuse_reports', status=value) }}"{% if status == value %} aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if page.items %}
+  <div class="table-wrap mt-4">
+    <table class="table">
+      <thead>
+        <tr><th scope="col">#</th><th scope="col">Reported user</th><th scope="col">Reported by</th><th scope="col">Reason</th><th scope="col">When</th><th scope="col">Status</th><th scope="col">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for a in page.items %}
+        <tr>
+          <td>{{ a.id }}</td>
+          <td>
+            {{ a.target_user.full_name }}{% if not a.target_user.is_active %} <span class="chip chip--closed">Deactivated</span>{% endif %}<br>
+            <a class="muted" href="{{ url_for('admin.users', q=a.target_user.email) }}">{{ a.target_user.email }}</a>
+          </td>
+          <td>{{ a.reporter.full_name }}</td>
+          <td class="table-text">{{ a.reason }}{% if a.conversation and a.conversation.lost_report %}<br><span class="muted">About case {{ a.conversation.lost_report.case_number }}</span>{% endif %}</td>
+          <td>{{ a.created_at|datetime }}</td>
+          <td><span class="chip chip--{{ {'open': 'warn', 'reviewed': 'found', 'dismissed': 'closed'}.get(a.status, 'closed') }}">{{ a.status|label('AbuseStatus') }}</span></td>
+          <td>
+            <div class="btn-row table-actions">
+              {% for value, label in [('reviewed', 'Mark reviewed'), ('dismissed', 'Dismiss'), ('open', 'Reopen')] if value != a.status %}
+              <form method="post" action="{{ url_for('admin.abuse_report_update', abuse_report_id=a.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <input type="hidden" name="status" value="{{ value }}">
+                <button class="btn btn-sm {{ 'btn-primary' if value == 'reviewed' else 'btn-pale' }}" type="submit">{{ label }}</button>
+              </form>
+              {% endfor %}
+              {% if a.target_user.is_active and a.target_user.id != current_user.id %}
+              <form method="post" action="{{ url_for('admin.user_active', user_id=a.target_user.id) }}" data-confirm="Deactivate {{ a.target_user.full_name }}?">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="{{ request.full_path }}">
+                <input type="hidden" name="active" value="0">
+                <input type="hidden" name="reason" value="Abuse report #{{ a.id }}">
+                <button class="btn btn-danger btn-sm" type="submit">Deactivate user</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pagination(page) }}
+  {% else %}
+  <div class="mt-4">{{ empty_state("Nothing to review", "No abuse reports with this status.", None, None, icon_name="flag") }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

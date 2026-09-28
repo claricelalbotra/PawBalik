@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import stepper, callout %}
+{% from "partials/forms.html" import csrf_input, photo_dropzone %}
+{% from "lost_pet/_fields.html" import pet_info_fields, features_fields, where_when_fields, contact_reward_fields %}
+{% set nav_active = "report" %}
+{% block title %}Report a Lost Pet{% endblock %}
+{% block description %}File a Lost Pet Report in Tacloban City and get a case number. PawBalik checks new sightings for possible matches.{% endblock %}
+{% block content %}
+{%- set e = errors -%}
+{%- set v = values -%}
+<div class="container container--form">
+  <header class="wizard-header">
+    <h1 class="page-header__title">{{ icon('report') }}<span>Report a <span class="accent">Lost Pet</span></span></h1>
+    <p class="muted mb-0">Nawawala ang alaga? Fill in the five steps below. You will get a case number right away.</p>
+  </header>
+
+  {# The stepper and Back/Next buttons appear only when lost_pet.js runs; without JS this is one long form. #}
+  <div class="wizard-progress" data-wizard-progress hidden>
+    {{ stepper(steps, current=start_step) }}
+  </div>
+
+  {% if errors %}
+  {% call callout("Please check the highlighted fields", "danger", "warning") %}
+  <ul class="mb-0">
+    {% for field, message in errors.items() if field != "photos_reselect" %}<li>{{ message }}</li>{% endfor %}
+  </ul>
+  {% if errors.photos_reselect %}<p class="mb-0">{{ errors.photos_reselect }}</p>{% endif %}
+  {% endcall %}
+  {% endif %}
+
+  <form class="report-wizard stack-lg mt-4" method="post" action="{{ url_for('pets.new') }}" enctype="multipart/form-data"
+        data-report-wizard data-start-step="{{ start_step }}" data-max-photos="{{ max_photos }}">
+    {{ csrf_input() }}
+
+    {# Step 1 - Pet Information #}
+    <section class="form-section wizard-step" data-wizard-step="1" aria-labelledby="step-1-title">
+      <div class="wizard-step__head">
+        <div>
+          <h2 class="form-section__title" id="step-1-title" tabindex="-1">{{ icon('paw') }} Pet Information</h2>
+          <p class="muted">Please provide the basic details about your lost pet.</p>
+        </div>
+        <img class="wizard-step__art hide-mobile" src="{{ url_for('static', filename='images/hero-pets.png') }}" alt="" width="120" height="100">
+      </div>
+      {{ pet_info_fields(v, e, breed_suggestions) }}
+      <div class="mt-4" data-photo-field>
+        {{ photo_dropzone("photos", "Photo(s) of Your Pet", max_files=max_photos, required=True, error=e.get("photos"), hint="JPEG, PNG or WebP, up to 8 MB each, up to " ~ max_photos ~ " photos. The first photo is the main photo used for matching.") }}
+      </div>
+      {% call callout(None, "success", "camera") %}
+      <p class="mb-0"><strong>{{ S.PHOTO_HINT }}</strong> Use good lighting, show the whole body and the face, one animal per photo.</p>
+      {% endcall %}
+      <div class="form-actions form-actions--between wizard-nav" data-wizard-nav hidden>
+        <a class="btn btn-pale" href="{{ url_for('cases.dashboard') }}">Cancel</a>
+        <button class="btn btn-primary" type="button" data-wizard-next>Next {{ icon('arrow-right') }}</button>
+      </div>
+    </section>
+
+    {# Step 2 - Identifying Features #}
+    <section class="form-section wizard-step" data-wizard-step="2" aria-labelledby="step-2-title">
+      <h2 class="form-section__title" id="step-2-title" tabindex="-1">{{ icon('search-paw') }} Identifying Features</h2>
+      <p class="muted">What makes your pet different from similar-looking animals?</p>
+      {{ features_fields(v, e) }}
+      <div class="form-actions form-actions--between wizard-nav" data-wizard-nav hidden>
+        <button class="btn btn-pale" type="button" data-wizard-prev>{{ icon('arrow-left') }} Back</button>
+        <button class="btn btn-primary" type="button" data-wizard-next>Next {{ icon('arrow-right') }}</button>
+      </div>
+    </section>
+
+    {# Step 3 - Where & When Lost #}
+    <section class="form-section wizard-step" data-wizard-step="3" aria-labelledby="step-3-title">
+      <h2 class="form-section__title" id="step-3-title" tabindex="-1">{{ icon('map-pin') }} Where &amp; When Lost</h2>
+      <p class="muted">Pin the last place your pet was seen. {{ S.SERVICE_AREA_NOTE }}</p>
+      {{ where_when_fields(v, e, today) }}
+      <div class="form-actions form-actions--between wizard-nav" data-wizard-nav hidden>
+        <button class="btn btn-pale" type="button" data-wizard-prev>{{ icon('arrow-left') }} Back</button>
+        <button class="btn btn-primary" type="button" data-wizard-next>Next {{ icon('arrow-right') }}</button>
+      </div>
+    </section>
+
+    {# Step 4 - Contact & Reward #}
+    <section class="form-section wizard-step" data-wizard-step="4" aria-labelledby="step-4-title">
+      <h2 class="form-section__title" id="step-4-title" tabindex="-1">{{ icon('phone') }} Contact &amp; Reward</h2>
+      <p class="muted">We filled this in from your account. People can always message you inside PawBalik.</p>
+      {{ contact_reward_fields(v, e) }}
+      <div class="form-actions form-actions--between wizard-nav" data-wizard-nav hidden>
+        <button class="btn btn-pale" type="button" data-wizard-prev>{{ icon('arrow-left') }} Back</button>
+        <button class="btn btn-primary" type="button" data-wizard-next>Review {{ icon('arrow-right') }}</button>
+      </div>
+    </section>
+
+    {# Step 5 - Review and Submit #}
+    <section class="form-section wizard-step" data-wizard-step="5" aria-labelledby="step-5-title">
+      <h2 class="form-section__title" id="step-5-title" tabindex="-1">{{ icon('clipboard') }} Review and Submit</h2>
+      <p class="muted" data-nojs-only>Please check the details above, then submit your report.</p>
+      <div class="review-summary" data-review-summary aria-live="polite"></div>
+      {% call callout("What happens next", "info", "info") %}
+      <ul class="mb-0">
+        <li>Your report gets a case number and appears in the public list of lost pets.</li>
+        <li>Your phone number stays masked unless you chose to show it.</li>
+        <li>PawBalik compares new pet sightings with your photos and alerts you about <strong>possible</strong> matches. Always verify with identifying details before a handover.</li>
+      </ul>
+      {% endcall %}
+      <div class="form-actions form-actions--between">
+        <button class="btn btn-pale" type="button" data-wizard-prev hidden>{{ icon('arrow-left') }} Back</button>
+        <button class="btn btn-primary btn-lg" type="submit" data-wizard-submit>{{ icon('check') }} Submit Report</button>
+      </div>
+    </section>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/lost_pet.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,21 @@
+# Tool settings only (PawBalik is run with `python run.py`, not installed as a package).
+# ruff and black both read this file; keep their line length in sync.
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["tests/_probes"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # long lines are handled by black
+    "B008",  # function calls in argument defaults are fine for Flask/click
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "database"]

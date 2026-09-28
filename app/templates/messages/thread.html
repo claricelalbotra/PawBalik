@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import status_badge, callout, avatar %}
+{% from "partials/forms.html" import csrf_input, location_picker, photo_dropzone, input_field %}
+{% from "messages/_message.html" import message_bubble %}
+{% set nav_active = "messages" %}
+{% block title %}Conversation with {{ other.full_name if other else 'a former user' }}{% endblock %}
+{% block content %}
+{%- set send_url = url_for('messages.api_send', conversation_id=conv.id) -%}
+{%- set thread_url = url_for('messages.thread', conversation_id=conv.id) -%}
+<div class="container">
+  <p class="thread-back"><a class="btn btn-link btn-sm" href="{{ url_for('messages.inbox') }}">{{ icon('arrow-left') }} All messages</a></p>
+
+  <div class="split thread-layout">
+    <section class="chat" aria-labelledby="chat-title"
+      data-chat
+      data-conversation-id="{{ conv.id }}"
+      data-last-id="{{ last_id }}"
+      data-last-read-mine-id="{{ last_read_mine_id }}"
+      data-can-send="{{ 'true' if can_send else 'false' }}"
+      data-messages-url="{{ url_for('messages.api_messages', conversation_id=conv.id) }}"
+      data-read-url="{{ url_for('messages.api_mark_read', conversation_id=conv.id) }}"
+      data-send-url="{{ send_url }}">
+      <header class="chat__header">
+        <span class="chat__thumb" aria-hidden="true">
+          {% if report_photo_url %}<img src="{{ report_photo_url }}" alt="" width="48" height="48">{% else %}{{ icon('paw') }}{% endif %}
+        </span>
+        <div class="chat__heading">
+          <h1 id="chat-title" class="chat__title name-with-avatar">{{ avatar(other, "sm") }} {{ other.full_name if other else 'Former user' }}</h1>
+          <p class="chat__subtitle">
+            {% if report %}
+              {% if report_visible %}<a href="{{ url_for('cases.detail', report_id=report.id) }}">{{ report.pet_name }} · {{ report.case_number }}</a>{% else %}{{ report.pet_name }} · {{ report.case_number }}{% endif %}
+              {{ status_badge(report.status) }}
+              {% if report.is_hidden %}{{ status_badge('hidden', 'Under review') }}{% endif %}
+            {% endif %}
+          </p>
+        </div>
+      </header>
+
+      <div class="chat__messages" data-messages role="log" aria-live="polite" aria-label="Messages" tabindex="0">
+        {% if not messages %}
+        <p class="chat__empty muted" data-empty>No messages yet. Say hello and share what you know about the pet.</p>
+        {% endif %}
+        {% for m in messages %}
+        {{ message_bubble(m, last_read_mine_id) }}
+        {% endfor %}
+        <span id="latest"></span>
+      </div>
+
+      {% if can_send %}
+      <form class="chat__composer" method="post" action="{{ send_url }}" data-composer>
+        {{ csrf_input() }}
+        <input type="hidden" name="type" value="text">
+        <a class="icon-btn" href="{{ thread_url }}?compose=location#pin-modal" data-open-modal="pin-modal" title="Share a location">{{ icon('map-pin', label='Share a location') }}</a>
+        <a class="icon-btn" href="{{ thread_url }}?compose=photo#photo-modal" data-open-modal="photo-modal" title="Send a photo">{{ icon('camera', label='Send a photo') }}</a>
+        <label class="visually-hidden" for="composer-body">Message</label>
+        <textarea id="composer-body" name="body" rows="1" maxlength="{{ max_length }}" required placeholder="Write a message…" data-composer-input></textarea>
+        <button class="btn btn-primary btn-icon" type="submit" title="Send" data-composer-send>{{ icon('send', label='Send') }}</button>
+      </form>
+      {% else %}
+      <div class="chat__readonly" data-readonly>
+        {% call callout(None, "warn", "lock") %}<p class="mb-0">{{ read_only_reason or 'You cannot send messages in this conversation.' }}</p>{% endcall %}
+      </div>
+      {% endif %}
+    </section>
+
+    <aside class="stack thread-aside" aria-label="About this case">
+      {% if report %}
+      <section class="card card-pad stack-sm" aria-labelledby="case-title">
+        <h2 id="case-title" class="h4 mb-0">About this case</h2>
+        <p class="mb-0"><strong>{{ report.pet_name }}</strong> <span class="muted">· {{ report.case_number }}</span></p>
+        <p class="muted mb-0">{{ report.species|label('Species') }}{% if report.breed %} · {{ report.breed }}{% endif %}{% if report.colors %} · {{ report.colors }}{% endif %}</p>
+        <p class="mb-0">{{ status_badge(report.status) }} <span class="muted">{% if is_owner %}You own this case.{% else %}Owner: {{ report.owner.full_name if report.owner else '' }}{% endif %}</span></p>
+        {% if report_visible %}
+        <div class="btn-row">
+          <a class="btn btn-pale btn-sm" href="{{ url_for('cases.detail', report_id=report.id) }}">{{ icon('clipboard') }} View case</a>
+          <a class="btn btn-outline btn-sm" href="{{ url_for('rescue.request_help', lost_report_id=report.id) }}">{{ icon('rescue') }} Rescue help</a>
+        </div>
+        {% endif %}
+        {% if sighting %}
+        <hr>
+        <p class="mb-0">{{ icon('eye-off') }} A private sighting is shared in this conversation (seen {{ sighting.seen_at|date }}).</p>
+        <a class="btn btn-link btn-sm" href="{{ url_for('sightings.detail', sighting_id=sighting.id) }}">View sighting</a>
+        {% endif %}
+      </section>
+      {% endif %}
+
+      <section class="card card--pale card-pad" aria-labelledby="checklist-title">
+        <h2 id="checklist-title" class="h4">{{ icon('shield') }} Verification checklist</h2>
+        <p class="muted">PawBalik only shows <strong>possible similarities</strong>. It cannot confirm that this is the same animal or who owns it. Before any handover:</p>
+        <ul class="checklist">
+          {% for item in checklist %}<li>{{ icon('check') }}<span>{{ item }}</span></li>{% endfor %}
+        </ul>
+      </section>
+
+      {% call callout(None, "info", "lock") %}<p class="mb-0">{{ phone_note }}</p>{% endcall %}
+
+      <section class="card card-pad" aria-labelledby="report-user-title">
+        <details class="report-user">
+          <summary id="report-user-title">{{ icon('flag') }} Report this user</summary>
+          <form class="form stack-sm mt-2" method="post" action="{{ url_for('messages.report_user', conversation_id=conv.id) }}">
+            {{ csrf_input() }}
+            <p class="muted mb-0">Tell the administrators what went wrong (e.g. scam, harassment, asking for money). They will review this conversation.</p>
+            {{ input_field('reason', 'Reason', type='textarea', required=True, maxlength=1000, rows=4, id='report-reason') }}
+            <button class="btn btn-danger btn-sm" type="submit">{{ icon('flag') }} Send report</button>
+          </form>
+        </details>
+      </section>
+    </aside>
+  </div>
+</div>
+
+{% if can_send %}
+<dialog class="modal" id="pin-modal" aria-labelledby="pin-modal-title"{% if compose == 'location' %} open{% endif %}>
+  <form method="post" action="{{ send_url }}" data-pin-form>
+    {{ csrf_input() }}
+    <input type="hidden" name="type" value="location_pin">
+    <div class="modal__header">
+      <h2 class="modal__title" id="pin-modal-title">{{ icon('map-pin') }} Share a location</h2>
+      <a class="modal__close" href="{{ thread_url }}" data-close-modal aria-label="Close">&times;</a>
+    </div>
+    <div class="modal__body stack">
+      <p class="muted mb-0">Pin where you saw or are keeping the pet, or a safe public meeting place such as a barangay hall.</p>
+      {{ location_picker(prefix="", required=True, label="Location", place_label="Label (optional)", id="pin-location") }}
+      {{ input_field('body', 'Note (optional)', maxlength=max_length, id='pin-note', placeholder='e.g. I am at the gate near the chapel') }}
+    </div>
+    <div class="modal__footer">
+      <a class="btn btn-pale" href="{{ thread_url }}" data-close-modal>Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ icon('send') }} Send location</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="modal" id="photo-modal" aria-labelledby="photo-modal-title"{% if compose == 'photo' %} open{% endif %}>
+  <form method="post" action="{{ send_url }}" enctype="multipart/form-data" data-photo-form>
+    {{ csrf_input() }}
+    <input type="hidden" name="type" value="image">
+    <div class="modal__header">
+      <h2 class="modal__title" id="photo-modal-title">{{ icon('camera') }} Send a photo</h2>
+      <a class="modal__close" href="{{ thread_url }}" data-close-modal aria-label="Close">&times;</a>
+    </div>
+    <div class="modal__body stack">
+      {{ photo_dropzone(name="photo", label="Photo", max_files=1, required=True, id="photo-input", hint="JPEG, PNG or WebP, up to 8 MB. Location data inside the photo is removed.") }}
+      {{ input_field('body', 'Caption (optional)', maxlength=max_length, id='photo-caption') }}
+    </div>
+    <div class="modal__footer">
+      <a class="btn btn-pale" href="{{ thread_url }}" data-close-modal>Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ icon('send') }} Send photo</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+<dialog class="modal modal--photo-viewer" id="photo-viewer" aria-label="Photo">
+  <div class="modal__header">
+    <h2 class="modal__title">Photo</h2>
+    <button class="modal__close" type="button" data-close-modal aria-label="Close">&times;</button>
+  </div>
+  <div class="modal__body photo-viewer__body"><img alt="Photo shared in this conversation" data-photo-viewer-img></div>
+</dialog>
+
+{#- Skeletons that messages.js clones for new messages (never contain user data). -#}
+{% set sample_pin = {'lat': 0, 'lng': 0, 'label': None, 'view_url': '#', 'directions_url': '#'} %}
+{% set sample_photo = {'thumb_url': '', 'full_url': '#'} %}
+<template id="msg-tpl-text">{{ message_bubble({'type': 'text', 'mine': False}, as_template=True) }}</template>
+<template id="msg-tpl-location_pin">{{ message_bubble({'type': 'location_pin', 'mine': False, 'location': sample_pin}, as_template=True) }}</template>
+<template id="msg-tpl-image">{{ message_bubble({'type': 'image', 'mine': False, 'photo': sample_photo}, as_template=True) }}</template>
+<template id="msg-tpl-system">{{ message_bubble({'type': 'system', 'mine': False}, as_template=True) }}</template>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/messages.js') }}"></script>
+{% endblock %}

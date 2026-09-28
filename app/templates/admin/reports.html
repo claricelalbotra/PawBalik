@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, status_badge, empty_state %}
+{% from "admin/_macros.html" import admin_nav, pagination, visibility_form, filter_bar with context %}
+{% block title %}Moderate Reports{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("Moderate", "Lost Pet Reports", subtitle="Hide spam or abusive reports. Hidden reports disappear from public lists and scans; the owner can still see them.", icon_name="report", art=False) }}
+  {{ admin_nav('reports') }}
+
+  <div class="mt-4">
+  {% call filter_bar(url_for('admin.reports')) %}
+    <div class="field">
+      <label class="field__label" for="f-q">Search</label>
+      <input class="input" id="f-q" name="q" value="{{ q }}" placeholder="Case number, pet name or owner">
+    </div>
+    <div class="field">
+      <label class="field__label" for="f-status">Status</label>
+      <select class="input" id="f-status" name="status" data-auto-submit>
+        <option value="">Any status</option>
+        {% for value, label in status_choices %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label class="field__label" for="f-visibility">Visibility</label>
+      <select class="input" id="f-visibility" name="visibility" data-auto-submit>
+        <option value="">All</option>
+        <option value="visible"{% if visibility == 'visible' %} selected{% endif %}>Visible</option>
+        <option value="hidden"{% if visibility == 'hidden' %} selected{% endif %}>Hidden</option>
+      </select>
+    </div>
+  {% endcall %}
+  </div>
+
+  {% if page.items %}
+  <div class="table-wrap mt-4">
+    <table class="table">
+      <thead>
+        <tr><th scope="col">Case</th><th scope="col">Pet</th><th scope="col">Owner</th><th scope="col">Filed</th><th scope="col">Status</th><th scope="col">Moderation</th></tr>
+      </thead>
+      <tbody>
+        {% for r in page.items %}
+        <tr{% if r.is_hidden %} class="is-hidden-row"{% endif %}>
+          <td><a href="{{ url_for('cases.detail', report_id=r.id) }}">{{ r.case_number }}</a></td>
+          <td>{{ r.pet_name }}<br><span class="muted">{{ r.species|label('Species') }} · {{ r.breed }}</span></td>
+          <td>{{ r.owner.full_name }}<br><span class="muted">{{ r.owner.email }}</span></td>
+          <td>{{ r.created_at|date }}</td>
+          <td>
+            {{ status_badge(r.status) }}
+            {% if r.is_hidden %}
+            <br>{{ status_badge('hidden') }}
+            <p class="table-note">{{ r.hidden_reason }}{% if r.hidden_by_user %} · by {{ r.hidden_by_user.full_name }}{% endif %}{% if r.hidden_at %} · {{ r.hidden_at|datetime }}{% endif %}</p>
+            {% endif %}
+          </td>
+          <td>{{ visibility_form(url_for('admin.report_visibility', report_id=r.id), r.is_hidden, 'case ' ~ r.case_number, 'r' ~ r.id) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pagination(page) }}
+  {% else %}
+  <div class="mt-4">{{ empty_state("No reports found", "Try clearing the filters.", url_for('admin.reports'), "Clear filters", icon_name="report") }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

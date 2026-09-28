@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, disclaimer, callout %}
+{% block title %}About Us{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("About", "PawBalik", subtitle="Lost-Found Dog-Cat Matching Using Gemini API and Rescue Coordination in Tacloban City", icon_name="paw") }}
+
+  <div class="split">
+    <article class="prose card card-pad">
+      <h2 class="mt-0">What PawBalik does</h2>
+      <p>PawBalik helps people in <strong>Tacloban City, Leyte</strong> bring lost dogs and cats back home and find help for animals in need.</p>
+      <ul>
+        <li><strong>Owners</strong> file a Lost Pet Report and get a case number (for example <code>PB-2026-000123</code>). The report is listed publicly so finders can recognise the pet.</li>
+        <li><strong>Finders</strong> scan a photo of a found pet with the <em>Found Pet Scanner</em>. It compares the photo with public lost-pet reports and shows possibly similar animals, so the finder can message the owner.</li>
+        <li>If nothing similar appears, the finder can submit a private <strong>Pet Sighting</strong> with a location pin. Sightings are never listed publicly. An owner only sees a sighting when their own scan (or our automatic background check) returns it as a possible match.</li>
+        <li>The <strong>Rescue Directory</strong> lists rescuers, veterinary clinics and shelters with phone numbers and Google Maps directions.</li>
+      </ul>
+
+      <h2>How photo matching works</h2>
+      <ol>
+        <li><strong>Photo check.</strong> Google Gemini checks that the photo shows exactly one dog or cat and notes the photo quality.</li>
+        <li><strong>Reading features.</strong> Gemini describes stable features: breed guess, coat colours and pattern, size and markings.</li>
+        <li><strong>Finding candidates.</strong> PawBalik looks for reports or sightings of the same species, seen within about 15 km and the last 60 days.</li>
+        <li><strong>Comparing photos.</strong> Gemini compares the photo with each candidate photo and explains matching features and notable differences.</li>
+        <li><strong>Ranking.</strong> A similarity percentage combines the photo comparison (70%), matching details (15%), distance (10%) and how recent the case is (5%).</li>
+      </ol>
+      {{ disclaimer() }}
+
+      <h2>Limitations</h2>
+      <ul>
+        <li>Tacloban City only, and domestic dogs and cats only.</li>
+        <li>A similarity percentage is a visual indicator, not proof. People verify identity together using unique markings, collars, vet records and older photos. PawBalik never confirms ownership.</li>
+        <li>Results depend on photo quality: use good lighting, show the whole body and the face, one animal per photo.</li>
+        <li>Case messaging is only for coordinating about a case. {{ S.EMERGENCY_NOTE }}</li>
+        <li>Directions rely on your device's GPS and Google Maps; PawBalik only builds the link.</li>
+        <li>You need an internet connection and a device with a camera or file upload.</li>
+      </ul>
+    </article>
+
+    <aside class="stack">
+      <section class="card card-pad">
+        <h2 class="h3">The team</h2>
+        <p class="muted">IT 122/122L Systems Analysis and Design, Leyte Normal University.</p>
+        <ul class="checklist">
+          <li>{{ icon('user') }}<span><strong>Reynald Jr. A. Cabujoc</strong><br><span class="muted">Project leader</span></span></li>
+          <li>{{ icon('user') }}<span><strong>Claricel R. Albotra</strong><br><span class="muted">Proponent</span></span></li>
+          <li>{{ icon('user') }}<span><strong>Jonalie C. Montera</strong><br><span class="muted">Proponent</span></span></li>
+        </ul>
+      </section>
+      {% call callout("Your privacy", "info", "lock") %}
+      <p>We only use your data to reunite pets and coordinate rescue. <a href="{{ url_for('main.privacy') }}">Read the Privacy Notice</a>.</p>
+      {% endcall %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

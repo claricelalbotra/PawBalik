@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state %}
+{% from "admin/_macros.html" import admin_nav, pagination, filter_bar with context %}
+{% block title %}Rescue Directory Admin{% endblock %}
+{% block content %}
+<div class="container">
+  {% call page_header("Rescue", "Directory", subtitle="Rescuers, veterinary clinics and shelters shown on the public Rescue page.", icon_name="rescue", art=False) %}
+  <p><a class="btn btn-primary" href="{{ url_for('admin.provider_new') }}">{{ icon('plus') }} Add provider</a></p>
+  {% endcall %}
+  {{ admin_nav('providers') }}
+
+  <div class="mt-4">
+  {% call filter_bar(url_for('admin.providers')) %}
+    <div class="field">
+      <label class="field__label" for="f-q">Search</label>
+      <input class="input" id="f-q" name="q" value="{{ q }}" placeholder="Name or barangay">
+    </div>
+    <div class="field">
+      <label class="field__label" for="f-type">Type</label>
+      <select class="input" id="f-type" name="type" data-auto-submit>
+        <option value="">All types</option>
+        {% for value, label in type_choices %}<option value="{{ value }}"{% if provider_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+  {% endcall %}
+  </div>
+
+  {% if page.items %}
+  <div class="table-wrap mt-4">
+    <table class="table">
+      <thead>
+        <tr><th scope="col">Name</th><th scope="col">Type</th><th scope="col">Barangay</th><th scope="col">Hours</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr>
+      </thead>
+      <tbody>
+        {% for p in page.items %}
+        <tr>
+          <td><a href="{{ url_for('rescue.provider', provider_id=p.id) }}">{{ p.name }}</a>{% if p.is_sample %} <span class="chip chip--sample">Sample</span>{% endif %}{% if p.lat is none %} <span class="chip chip--warn">No map pin</span>{% endif %}</td>
+          <td>{{ p.type|label('ProviderType') }}</td>
+          <td>{{ p.barangay or '' }}</td>
+          <td>{% if p.is_24_7 %}24/7{% else %}{{ p.hours_text or '' }}{% endif %}</td>
+          <td>{% if p.is_active %}<span class="chip chip--found">Active</span>{% else %}<span class="chip chip--closed">Inactive</span>{% endif %}</td>
+          <td>
+            <div class="btn-row table-actions">
+              <a class="btn btn-outline btn-sm" href="{{ url_for('admin.provider_edit', provider_id=p.id) }}">{{ icon('edit') }} Edit</a>
+              <form method="post" action="{{ url_for('admin.provider_delete', provider_id=p.id) }}" data-confirm="Delete {{ p.name }}? If it is linked to rescue requests it will be deactivated instead.">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-danger btn-sm" type="submit">{{ icon('trash') }} Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pagination(page) }}
+  {% else %}
+  <div class="mt-4">{{ empty_state("No providers yet", "Add rescuers, vets and shelters, or run \"python run.py seed\" for SAMPLE data.", url_for('admin.provider_new'), "Add provider", icon_name="rescue") }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

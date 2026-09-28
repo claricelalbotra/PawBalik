@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout %}
+{% from "partials/forms.html" import csrf_input, input_field, checkbox_field, location_picker, form_errors %}
+{% from "admin/_macros.html" import admin_nav with context %}
+{% block title %}{{ 'Edit Provider' if provider else 'Add Provider' }}{% endblock %}
+{% block content %}
+<div class="container container--narrow">
+  {{ page_header("Edit" if provider else "Add", "Provider", subtitle="Shown in the public Rescue Directory. Use only real, verified contact details (or tick Sample for demo data).", icon_name="rescue", art=False) }}
+  {{ admin_nav('providers') }}
+
+  {% if errors %}
+  <div class="mt-4">{{ form_errors(["Please fix the highlighted fields."]) }}</div>
+  {% endif %}
+
+  <form class="card card-pad form stack mt-4" method="post" action="{{ url_for('admin.provider_edit', provider_id=provider.id) if provider else url_for('admin.provider_new') }}" novalidate>
+    {{ csrf_input() }}
+    <div class="form-grid">
+      {{ input_field("name", "Name", values.name, required=True, error=errors.name, class="field--full", maxlength=160) }}
+      {{ input_field("type", "Type", values.type, type="select", required=True, error=errors.type, options=[("", "Choose a type")] + type_choices) }}
+      {{ input_field("phones", "Phone number(s)", values.phones, error=errors.phones, hint="Separate several numbers with commas, e.g. 0917 123 4567, (053) 321 1234", maxlength=255, inputmode="tel") }}
+      {{ input_field("address", "Street address", values.address, error=errors.address, class="field--full", maxlength=255) }}
+    </div>
+
+    {{ location_picker(lat=values.lat, lng=values.lng, place=values.place, required=False, error=errors.location or errors.barangay,
+                       label="Map location", place_label="Barangay", hint="Tap the map then pin the location. Needed for sorting by distance.", id="provider-location") }}
+
+    <div class="form-grid">
+      {{ input_field("hours_text", "Opening hours", values.hours_text, error=errors.hours_text, class="field--full", maxlength=255,
+                     hint='Use a simple format so "Open now" works, e.g. "Mon-Sat 8:00 AM - 5:00 PM" or "Mon-Fri 8AM-5PM; Sat 8AM-12PM; Sun closed".') }}
+      {{ input_field("facebook_url", "Facebook page", values.facebook_url, type="url", error=errors.facebook_url, class="field--full", maxlength=255, placeholder="https://www.facebook.com/...") }}
+      {{ input_field("services", "Services", values.services, type="textarea", error=errors.services, class="field--full", rows=3, maxlength=2000, placeholder="e.g. Consultation, vaccination, emergency first aid, pick-up of injured strays") }}
+    </div>
+
+    <fieldset class="stack-sm">
+      <legend class="field__label">Options</legend>
+      {{ checkbox_field("is_24_7", "Open 24 hours, 7 days a week", checked=values.is_24_7) }}
+      {{ checkbox_field("is_active", "Active (shown in the public directory)", checked=values.is_active) }}
+      {{ checkbox_field("is_sample", "Sample / demo data (shows a SAMPLE badge)", checked=values.is_sample) }}
+    </fieldset>
+
+    <div class="form-actions form-actions--between">
+      <a class="btn btn-pale" href="{{ url_for('admin.providers') }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ icon('check') }} {{ 'Save changes' if provider else 'Add provider' }}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

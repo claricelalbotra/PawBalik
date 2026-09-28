@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{#- Generic error page. Specific pages (403/404/429/500) extend this and override blocks.
+    Context: status, code, message (from app/routes/main.py). -#}
+{% block title %}{% block error_title %}Something went wrong{% endblock %}{% endblock %}
+{% block content %}
+<div class="container">
+  <section class="error-page card card-pad">
+    <p class="error-page__code" aria-hidden="true">{{ status|default(400) }}</p>
+    <h1>{% block error_heading %}{{ self.error_title() }}{% endblock %}</h1>
+    <p class="muted">{% block error_message %}{{ message|default('Please try again.') }}{% endblock %}</p>
+    <div class="btn-row" style="justify-content:center">
+      {% block error_actions %}
+      <a class="btn btn-primary" href="{{ url_for('main.index') }}">{{ icon('home') }} Go to the home page</a>
+      {% endblock %}
+    </div>
+  </section>
+</div>
+{% endblock %}

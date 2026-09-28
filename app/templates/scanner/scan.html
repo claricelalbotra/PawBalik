@@ -1,0 +1,31 @@
+{#- Scanning state (SPEC 16.5), included by scanner/choose.html and shown in-page by
+    static/js/scanner.js while POST /api/scans runs: the photo inside green viewfinder
+    corners, a progress bar and staged status text announced to screen readers. -#}
+<section class="scan-progress" data-scan-progress hidden aria-labelledby="scan-progress-title">
+  <h2 class="visually-hidden" id="scan-progress-title">Scanning your photo</h2>
+  <div class="viewfinder is-scanning" data-scan-viewfinder>
+    <div class="viewfinder__media"><img data-scan-preview alt="The photo being scanned"></div>
+    <span class="viewfinder__corner viewfinder__corner--tl" aria-hidden="true"></span>
+    <span class="viewfinder__corner viewfinder__corner--tr" aria-hidden="true"></span>
+    <span class="viewfinder__corner viewfinder__corner--bl" aria-hidden="true"></span>
+    <span class="viewfinder__corner viewfinder__corner--br" aria-hidden="true"></span>
+  </div>
+  <div class="progress" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="100"
+       aria-valuenow="0" data-scan-progressbar>
+    <div class="progress__bar" data-scan-bar></div>
+  </div>
+  <p class="scan-status" data-scan-status aria-live="polite">Scanning for matches…</p>
+
+  <div class="scan-error" data-scan-error hidden role="alert">
+    <div class="callout callout--danger">
+      <span class="callout__icon" aria-hidden="true">{{ icon('warning') }}</span>
+      <div>
+        <p class="callout__title">We could not scan this photo</p>
+        <p data-scan-error-text></p>
+      </div>
+    </div>
+    <div class="btn-row mt-4">
+      <button class="btn btn-primary" type="button" data-scan-retry>{{ icon('refresh') }} Try another photo</button>
+    </div>
+  </div>
+</section>

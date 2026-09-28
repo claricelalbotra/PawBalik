@@ -1,0 +1,58 @@
+{#- Report form fields shared by create_report.html (wizard) and edit_report.html.
+    Every macro takes `v` (values dict) and `e` (errors dict, keyed by field name).
+    Imported macros only see Jinja globals, so everything else is passed in. -#}
+{% from "partials/forms.html" import input_field, checkbox_field, toggle_group, location_picker %}
+
+{#- Step 1: Pet Information (photos are added by the page itself). -#}
+{% macro pet_info_fields(v, e, breed_suggestions) -%}
+<div class="form-grid">
+  <div class="field--full">
+    {{ toggle_group("species", "Type of Pet", [("dog", "Dog", "dog"), ("cat", "Cat", "cat")], value=v.species, required=True, error=e.get("species"), tiles=True) }}
+  </div>
+  {{ input_field("pet_name", "Pet's Name", v.pet_name, required=True, error=e.get("pet_name"), maxlength=80, autocomplete="off", placeholder="e.g. Bantay") }}
+  {{ input_field("breed", "Breed", v.breed, required=True, error=e.get("breed"), hint="Not sure? “Aspin (mixed)” / “Puspin (mixed)” is fine.", maxlength=80, autocomplete="off", list="breed-options", placeholder="e.g. Aspin (mixed)") }}
+  <datalist id="breed-options" data-breed-options>
+    {% for species, names in breed_suggestions.items() %}{% for name in names %}
+    <option value="{{ name }}" data-species="{{ species }}"></option>
+    {% endfor %}{% endfor %}
+  </datalist>
+  {{ input_field("colors", "Fur Color / Pattern", v.colors, required=True, error=e.get("colors"), maxlength=120, placeholder="e.g. Brown with white chest") }}
+  {{ input_field("age_text", "Estimated Age (Optional)", v.age_text, error=e.get("age_text"), maxlength=40, placeholder="e.g. 2 years, puppy, senior") }}
+  <div class="field--full">
+    {{ toggle_group("size", "Size", [("small", "Small"), ("medium", "Medium"), ("large", "Large")], value=v.size, required=True, error=e.get("size")) }}
+  </div>
+  <div class="field--full">
+    {{ toggle_group("sex", "Sex", [("male", "Male"), ("female", "Female"), ("unknown", "Unknown")], value=v.sex, required=True, error=e.get("sex")) }}
+  </div>
+</div>
+{%- endmacro %}
+
+{#- Step 2: Identifying Features. -#}
+{% macro features_fields(v, e) -%}
+{{ input_field("identifying_features", "Unique identifying features", v.identifying_features, type="textarea", error=e.get("identifying_features"), hint="Scars, spots, collar or tag, eye colour, tail shape, microchip, behaviour… These help owners and finders verify a possible match.", maxlength=2000, rows=5, placeholder="e.g. Red collar with a bell, white patch on the left ear, short curled tail") }}
+{%- endmacro %}
+
+{#- Step 3: Where & When Lost. -#}
+{% macro where_when_fields(v, e, today) -%}
+{{ location_picker(lat=v.lat, lng=v.lng, place=v.place, required=True, error=e.get("location") or e.get("place"), label="Where was your pet last seen?", place_label="Barangay / landmark", id="last-seen") }}
+<div class="form-grid mt-4">
+  {{ input_field("last_seen_date", "Date last seen", v.last_seen_date, type="date", required=True, error=e.get("last_seen_date"), max=today) }}
+  {{ input_field("last_seen_time", "Approximate time (Optional)", v.last_seen_time, type="time", error=e.get("last_seen_time")) }}
+</div>
+{%- endmacro %}
+
+{#- Step 4: Contact & Reward. -#}
+{% macro contact_reward_fields(v, e) -%}
+<div class="form-grid">
+  <div class="field--full">
+    {{ input_field("contact_name", "Contact name", v.contact_name, required=True, error=e.get("contact_name"), maxlength=120, autocomplete="name") }}
+  </div>
+  {{ input_field("contact_email", "Email address", v.contact_email, type="email", error=e.get("contact_email"), hint="Only you and administrators see this.", maxlength=255, autocomplete="email") }}
+  {{ input_field("contact_phone", "Mobile number", v.contact_phone, type="tel", error=e.get("contact_phone"), hint="PH mobile number, e.g. 0917 123 4567.", autocomplete="tel", inputmode="tel") }}
+  <div class="field--full">
+    {{ checkbox_field("show_phone", "Show my phone number publicly on this case", checked=v.show_phone, hint="If unticked, the public sees a masked number such as +63 9** *** 1234 and can still message you in PawBalik.") }}
+  </div>
+  {{ input_field("reward_amount", "Reward amount in PHP (Optional)", v.reward_amount, type="number", error=e.get("reward_amount"), min="0", step="0.01", inputmode="decimal", placeholder="e.g. 1500") }}
+  {{ input_field("reward_text", "Reward details (Optional)", v.reward_text, error=e.get("reward_text"), maxlength=160, placeholder="e.g. Snacks for the finder's pets") }}
+</div>
+{%- endmacro %}

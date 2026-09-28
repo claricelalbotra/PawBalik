@@ -1,0 +1,118 @@
+{#- Shared UI macros. Import what you need:
+    {% from "partials/ui.html" import page_header, disclaimer, empty_state, stepper,
+                                      status_badge, similarity_badge, callout, avatar %}
+    `icon(name)` is a global (app/utils/icons.py); `S` holds the copy in app/utils/strings.py. -#}
+
+{#- Page title with a green accent word and the dog+cat art at the right (SPEC 16.4).
+    page_header("Match a", "Found Pet", subtitle="...", icon_name="paw")
+    -> "Match a <green>Found Pet</green>". Use art=False to hide the illustration. -#}
+{% macro page_header(title, accent=None, subtitle=None, icon_name=None, art=True, accent_first=False, level=1) -%}
+<header class="page-header">
+  <div class="page-header__text">
+    <h{{ level }} class="page-header__title">
+      {%- if icon_name %}{{ icon(icon_name) }}{% endif %}
+      <span>
+      {%- if accent and accent_first %}<span class="accent">{{ accent }}</span> {{ title }}
+      {%- elif accent %}{{ title }} <span class="accent">{{ accent }}</span>
+      {%- else %}{{ title }}{% endif -%}
+      </span>
+    </h{{ level }}>
+    {% if subtitle %}<p class="page-header__subtitle">{{ subtitle }}</p>{% endif %}
+    {{ caller() if caller else '' }}
+  </div>
+  {% if art %}
+  <div class="page-header__art hide-mobile">
+    <img src="{{ url_for('static', filename='images/hero-pets.png') }}" alt="" width="180" height="152" loading="lazy">
+  </div>
+  {% endif %}
+</header>
+{%- endmacro %}
+
+{#- The persistent similarity disclaimer, exact SPEC section 3 text. Required on every result screen. -#}
+{% macro disclaimer(extra_class="") -%}
+<aside class="disclaimer {{ extra_class }}" role="note" aria-label="About similarity percentages">
+  {{ icon('info') }}
+  <p>{{ S.DISCLAIMER }}</p>
+</aside>
+{%- endmacro %}
+
+{#- Guiding empty state: empty_state("No cases yet", "File a report ...", url_for('pets.new'), "Report a Lost Pet", icon_name="paw") -#}
+{% macro empty_state(title, text=None, action_url=None, action_label=None, icon_name="paw") -%}
+<div class="empty-state">
+  <div class="empty-state__icon">{{ icon(icon_name) }}</div>
+  <h2 class="empty-state__title">{{ title }}</h2>
+  {% if text %}<p class="empty-state__text">{{ text }}</p>{% endif %}
+  {% if action_url %}<a class="btn btn-primary" href="{{ action_url }}">{{ action_label or 'Get started' }}</a>{% endif %}
+  {{ caller() if caller else '' }}
+</div>
+{%- endmacro %}
+
+{#- Horizontal stepper (SPEC 16.8). steps = list of labels; current = 1-based index.
+    stepper(["Pet Information", "Identifying Features", "Where & When Lost", "Contact & Reward", "Review and Submit"], 1) -#}
+{% macro stepper(steps, current=1, show_count=True) -%}
+{% if show_count %}<p class="step-count" data-step-count>Step {{ current }} of {{ steps|length }}</p>{% endif %}
+<ol class="stepper" data-stepper>
+  {% for label in steps %}
+  <li class="stepper__step{% if loop.index < current %} is-done{% elif loop.index == current %} is-active{% endif %}"{% if loop.index == current %} aria-current="step"{% endif %} data-step="{{ loop.index }}">
+    <span class="stepper__circle">{% if loop.index < current %}{{ icon('check') }}{% else %}{{ loop.index }}{% endif %}</span>
+    <span class="stepper__label">{{ label }}</span>
+  </li>
+  {% endfor %}
+</ol>
+{%- endmacro %}
+
+{#- Status chip for reports ("lost", "found", "closed") and sightings ("active", "matched", "expired").
+    status_badge(report.status) / status_badge("hidden", "Hidden by moderator") -#}
+{% macro status_badge(status, label=None) -%}
+{%- set labels = {'lost': 'Lost', 'found': 'Found', 'closed': 'Closed', 'active': 'Active', 'matched': 'Matched', 'expired': 'Expired', 'hidden': 'Hidden', 'sample': 'Sample'} -%}
+<span class="chip chip--{{ status }}">{{ label or labels.get(status, status|title) }}</span>
+{%- endmacro %}
+
+{#- "● 84% match" badge. tier = high|moderate|low|hidden. -#}
+{% macro similarity_badge(percent, tier="high") -%}
+<span class="similarity-badge similarity-badge--{{ tier or 'high' }}">
+  <span class="similarity-badge__dot" aria-hidden="true"></span>{{ percent }}% match
+</span>
+{%- endmacro %}
+
+{#- Callout box. kind = success (pale green) | info | warn | danger. Body via {% call %}. -#}
+{% macro callout(title=None, kind="success", icon_name="info", symbol=None) -%}
+<div class="callout callout--{{ kind }}">
+  <span class="callout__icon" aria-hidden="true">{% if symbol %}{{ symbol }}{% else %}{{ icon(icon_name) }}{% endif %}</span>
+  <div>
+    {% if title %}<p class="callout__title">{{ title }}</p>{% endif %}
+    {{ caller() if caller else '' }}
+  </div>
+</div>
+{%- endmacro %}
+
+{#- Photo upload tips (SPEC 3). -#}
+{% macro upload_tips() -%}
+{% call callout("Photo tips", "success", "camera") %}
+<ul class="mb-0">
+  {% for tip in S.UPLOAD_TIPS %}<li>{{ tip }}</li>{% endfor %}
+</ul>
+{% endcall %}
+{%- endmacro %}
+
+{#- Open in Google Maps / Get Directions buttons for a coordinate. -#}
+{% macro map_buttons(lat, lng, size="btn-sm") -%}
+{% if lat is not none and lng is not none %}
+<div class="btn-row">
+  <a class="btn btn-outline {{ size }}" href="{{ view_url(lat, lng) }}" target="_blank" rel="noopener">{{ icon('map-pin') }} Open in Google Maps</a>
+  <a class="btn btn-green {{ size }}" href="{{ directions_url(lat, lng) }}" target="_blank" rel="noopener">{{ icon('directions') }} Get Directions</a>
+</div>
+{% endif %}
+{%- endmacro %}
+
+
+{#- Profile picture circle, or the user's initial when they have no picture.
+    avatar(user)  sizes: "sm" (28px), "md" (34px, default), "lg" (96px).
+    Decorative by default (the name is shown next to it); pass label= to announce it. -#}
+{% macro avatar(user, size="md", label=None) -%}
+{%- set url = user.avatar_url if user else None -%}
+<span class="avatar avatar--{{ size }}"{% if not label %} aria-hidden="true"{% endif %}>
+  {%- if url %}<img src="{{ url }}" alt="{{ label or '' }}" loading="lazy" decoding="async">
+  {%- else %}{{ user.initial if user else '?' }}{% endif -%}
+</span>
+{%- endmacro %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state, status_badge %}
+{% block title %}Messages{% endblock %}
+{% block content %}
+<div class="container container--narrow">
+  {{ page_header("Your", "Messages", subtitle="Conversations about lost pet cases. Similar-looking pets are only possible matches - always verify before a handover.", icon_name="chat", art=False) }}
+
+  {% if conversations %}
+  <ul class="conversation-list card" aria-label="Conversations">
+    {% for c in conversations %}
+    <li>
+      <a class="conversation-list__item{% if c.unread %} is-unread{% endif %}" href="{{ c.url }}">
+        <span class="conversation-list__thumb" aria-hidden="true">
+          {% if c.photo_url %}<img src="{{ c.photo_url }}" alt="" width="56" height="56" loading="lazy">{% else %}{{ icon('paw') }}{% endif %}
+        </span>
+        <span class="conversation-list__text">
+          <span class="conversation-list__top">
+            <span class="conversation-list__name name-with-avatar">
+              <span class="avatar avatar--sm" aria-hidden="true">{% if c.other_avatar_url %}<img src="{{ c.other_avatar_url }}" alt="" loading="lazy">{% else %}{{ c.other_initial }}{% endif %}</span>
+              {{ c.other_name }}
+            </span>
+            <span class="conversation-list__time muted">{{ c.activity_label }}</span>
+          </span>
+          <span class="conversation-list__case">
+            {{ c.pet_name }} · {{ c.case_number }} {{ status_badge(c.status) }}
+            {% if c.role == 'owner' %}<span class="muted">· your case</span>{% endif %}
+          </span>
+          <span class="conversation-list__preview muted">{{ c.last_message_preview }}</span>
+        </span>
+        {% if c.unread %}
+        <span class="conversation-list__unread" aria-label="{{ c.unread }} unread message{{ '' if c.unread == 1 else 's' }}">{{ c.unread if c.unread < 100 else '99+' }}</span>
+        {% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  {{ empty_state("No conversations yet",
+                 "When you message an owner about a lost pet, or someone messages you about your case, the conversation appears here.",
+                 url_for('pets.browse'), "Browse lost pets", icon_name="chat") }}
+  {% endif %}
+</div>
+{% endblock %}

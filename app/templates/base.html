@@ -1,0 +1,155 @@
+{% from "partials/ui.html" import avatar %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="theme-color" content="#4e8b3a">
+  <title>{% block title %}{{ config.APP_NAME }}{% endblock %} · {{ config.APP_NAME }}</title>
+  <meta name="description" content="{% block description %}Photo matching and community rescue coordination for lost and found dogs and cats in Tacloban City.{% endblock %}">
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.png') }}" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Pacifico&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+{%- set nav_active = nav_active|default('') %}
+<body class="has-bottom-nav {% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="brand" href="{{ url_for('main.index') }}" aria-label="{{ config.APP_NAME }} home">
+        <img class="brand__logo" src="{{ url_for('static', filename='images/logo-mark.png') }}" alt="" width="52" height="52">
+        <span class="brand__text">
+          <img class="brand__name" src="{{ url_for('static', filename='images/title-mark.png') }}" alt="PawBalik" width="163" height="28">
+          <span class="brand__tagline">{{ config.APP_TAGLINE }}</span>
+        </span>
+      </a>
+
+      <nav class="site-nav" aria-label="Main">
+        <ul class="site-nav__list">
+          {% for key, endpoint, label in [
+              ('home', 'main.index', 'Home'),
+              ('report', 'pets.new', 'Report a Lost Pet'),
+              ('match', 'scanner.found', 'Match a Found Pet'),
+              ('rescue', 'rescue.directory', 'Rescue'),
+              ('about', 'main.about', 'About Us')] %}
+          <li><a class="site-nav__link{% if nav_active == key %} is-active{% endif %}" href="{{ url_for(endpoint) }}"{% if nav_active == key %} aria-current="page"{% endif %}>{{ label }}</a></li>
+          {% endfor %}
+        </ul>
+      </nav>
+
+      <div class="header-actions">
+        {% if current_user.is_authenticated %}
+          <a class="icon-btn hide-mobile{% if nav_active == 'messages' %} is-active{% endif %}" href="{{ url_for('messages.inbox') }}" aria-label="Messages{% if unread_counts.messages %} ({{ unread_counts.messages }} unread){% endif %}">
+            {{ icon('chat') }}
+            {% if unread_counts.messages %}<span class="badge-count" aria-hidden="true">{{ unread_counts.messages if unread_counts.messages < 100 else '99+' }}</span>{% endif %}
+          </a>
+          <a class="icon-btn{% if nav_active == 'notifications' %} is-active{% endif %}" href="{{ url_for('notifications.index') }}" aria-label="Notifications{% if unread_counts.notifications %} ({{ unread_counts.notifications }} unread){% endif %}">
+            {{ icon('bell') }}
+            {% if unread_counts.notifications %}<span class="badge-count" aria-hidden="true" data-unread-notifications>{{ unread_counts.notifications if unread_counts.notifications < 100 else '99+' }}</span>{% endif %}
+          </a>
+          <a class="btn btn-pale btn-sm hide-mobile" href="{{ url_for('cases.dashboard') }}">My Cases</a>
+          <details class="account-menu">
+            <summary aria-label="Account menu for {{ current_user.full_name }}" title="{{ current_user.full_name }}">
+              {{ avatar(current_user) }}
+            </summary>
+            <div class="menu" role="menu">
+              <div class="menu__header">
+                {{ avatar(current_user) }}
+                <span>
+                  <strong>{{ current_user.full_name }}</strong><br>
+                  <span class="muted">{{ current_user.email }}</span>
+                </span>
+              </div>
+              <a role="menuitem" href="{{ url_for('cases.dashboard') }}">{{ icon('clipboard') }} My Cases</a>
+              <a role="menuitem" href="{{ url_for('messages.inbox') }}">{{ icon('chat') }} Messages</a>
+              <a role="menuitem" href="{{ url_for('auth.profile') }}">{{ icon('settings') }} Profile &amp; Settings</a>
+              {% if current_user.is_admin %}
+              <a role="menuitem" href="{{ url_for('admin.dashboard') }}">{{ icon('admin') }} Admin</a>
+              {% endif %}
+              <form method="post" action="{{ url_for('auth.logout') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" role="menuitem">{{ icon('logout') }} Log out</button>
+              </form>
+            </div>
+          </details>
+        {% else %}
+          <a class="btn btn-green btn-sm" href="{{ url_for('auth.login') }}">Log In</a>
+          <a class="btn btn-green btn-sm hide-mobile" href="{{ url_for('auth.register') }}">Sign Up</a>
+        {% endif %}
+        <button class="icon-btn nav-toggle" type="button" aria-controls="mobile-nav" aria-expanded="false" data-nav-toggle>
+          {{ icon('menu', label='Open menu') }}
+        </button>
+      </div>
+    </div>
+
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile" hidden>
+      <ul>
+        <li><a href="{{ url_for('main.index') }}"{% if nav_active == 'home' %} class="is-active"{% endif %}>Home</a></li>
+        <li><a href="{{ url_for('pets.new') }}"{% if nav_active == 'report' %} class="is-active"{% endif %}>Report a Lost Pet</a></li>
+        <li><a href="{{ url_for('scanner.found') }}"{% if nav_active == 'match' %} class="is-active"{% endif %}>Match a Found Pet</a></li>
+        <li><a href="{{ url_for('pets.browse') }}">Browse Lost Pets</a></li>
+        <li><a href="{{ url_for('rescue.directory') }}"{% if nav_active == 'rescue' %} class="is-active"{% endif %}>Rescue</a></li>
+        <li><a href="{{ url_for('main.about') }}"{% if nav_active == 'about' %} class="is-active"{% endif %}>About Us</a></li>
+        {% if current_user.is_authenticated %}
+        <li><a href="{{ url_for('cases.dashboard') }}"{% if nav_active == 'cases' %} class="is-active"{% endif %}>My Cases</a></li>
+        {% else %}
+        <li><a href="{{ url_for('auth.register') }}">Sign Up</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </header>
+
+  <main id="main" class="site-main" tabindex="-1">
+    <div class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <ul class="flash-list" aria-live="polite">
+        {% for category, message in messages %}
+        <li class="flash flash--{{ category if category in ['success', 'error', 'warning', 'info'] else 'info' }}" role="{{ 'alert' if category == 'error' else 'status' }}">
+          {{ icon('check-circle' if category == 'success' else ('warning' if category in ['error', 'warning'] else 'info')) }}
+          <span>{{ message }}</span>
+          <button class="flash__close" type="button" aria-label="Dismiss message" data-dismiss>&times;</button>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% endwith %}
+    </div>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <p class="mb-0">&copy; {{ current_year|default('2026') }} PawBalik · Tacloban City, Leyte · For dogs and cats only.</p>
+      <ul class="footer-links">
+        <li><a href="{{ url_for('main.about') }}">About</a></li>
+        <li><a href="{{ url_for('main.privacy') }}">Privacy Notice</a></li>
+        <li><a href="{{ url_for('pets.browse') }}">Lost Pets</a></li>
+        <li><a href="{{ url_for('rescue.directory') }}">Rescue Directory</a></li>
+      </ul>
+    </div>
+  </footer>
+
+  <nav class="bottom-nav" aria-label="Quick">
+    <ul class="bottom-nav__list">
+      <li><a class="bottom-nav__item{% if nav_active == 'home' %} is-active{% endif %}" href="{{ url_for('main.index') }}">{{ icon('home') }}<span>Home</span></a></li>
+      <li><a class="bottom-nav__item bottom-nav__item--scan{% if nav_active == 'match' %} is-active{% endif %}" href="{{ url_for('scanner.index') }}"><span class="bottom-nav__scan">{{ icon('scan') }}</span><span>Scan</span></a></li>
+      <li><a class="bottom-nav__item{% if nav_active == 'report' %} is-active{% endif %}" href="{{ url_for('pets.new') }}">{{ icon('report') }}<span>Report</span></a></li>
+      <li><a class="bottom-nav__item{% if nav_active == 'messages' %} is-active{% endif %}" href="{{ url_for('messages.inbox') }}">{{ icon('chat') }}<span>Messages</span>{% if unread_counts.messages %}<span class="badge-count" aria-label="{{ unread_counts.messages }} unread">{{ unread_counts.messages if unread_counts.messages < 100 else '99+' }}</span>{% endif %}</a></li>
+      <li><a class="bottom-nav__item{% if nav_active == 'rescue' %} is-active{% endif %}" href="{{ url_for('rescue.directory') }}">{{ icon('rescue') }}<span>Rescue</span></a></li>
+    </ul>
+  </nav>
+
+  <div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="false"></div>
+
+  {# Non-secret settings for static/js (main.js exports them as `config`). #}
+  <script type="application/json" id="pawbalik-config">{{ public_config|tojson }}</script>
+  <script type="module" src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

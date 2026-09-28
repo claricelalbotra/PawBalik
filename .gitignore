@@ -1,0 +1,35 @@
+# --- Secrets: never commit -----------------------------------------------------
+.env
+*.env.local
+firebase-service-account*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+
+# --- Python ----------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+instance/
+
+# --- Local data ------------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+# Uploaded photos (local storage fallback). Keep the folder itself.
+uploads/pets/*
+!uploads/pets/.gitkeep
+
+# --- Tooling ---------------------------------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/_probes/
+
+# --- Editors / OS ----------------------------------------------------------------
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state %}
+{% from "partials/cards.html" import pet_card %}
+{% set nav_active = "report" %}
+{% block title %}Lost Pets{% endblock %}
+{% block description %}Lost dogs and cats reported in Tacloban City. Search by name, breed, colour or place, or find cases near you.{% endblock %}
+{% block content %}
+<div class="container">
+  {% call page_header("Lost Pets in", "Tacloban City", subtitle="Nawawala: dogs and cats reported by their owners. Seen one of them? Open the case and message the owner.", icon_name="paw") %}
+  <div class="btn-row mt-4">
+    <a class="btn btn-primary" href="{{ url_for('pets.new') }}">{{ icon('report') }} Report a Lost Pet</a>
+    <a class="btn btn-pale" href="{{ url_for('scanner.found') }}">{{ icon('scan') }} Match a Found Pet</a>
+  </div>
+  {% endcall %}
+
+  <form class="card card-pad browse-filters" method="get" action="{{ url_for('pets.browse') }}" role="search" data-browse-filters>
+    <div class="browse-filters__grid">
+      <div class="field">
+        <label class="field__label" for="f-q">Search</label>
+        <input class="input" id="f-q" name="q" type="search" value="{{ params.q or '' }}" maxlength="80" placeholder="Name, breed, colour, place or case number">
+      </div>
+      <div class="field">
+        <label class="field__label" for="f-species">Type of pet</label>
+        <select class="input" id="f-species" name="species">
+          <option value="">Dogs and cats</option>
+          {% for value, label in species_choices %}<option value="{{ value }}"{% if params.species == value %} selected{% endif %}>{{ label }}s</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field__label" for="f-status">Status</label>
+        <select class="input" id="f-status" name="status">
+          {% for value, label in status_choices %}<option value="{{ value }}"{% if params.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label class="field__label" for="f-radius">Distance</label>
+        <select class="input" id="f-radius" name="radius">
+          {% for km in radius_choices %}<option value="{{ km }}"{% if params.radius_km|int == km %} selected{% endif %}>Within {{ km }} km</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <input type="hidden" name="near" value="{% if params.near %}{{ '%.5f'|format(params.near[0]) }},{{ '%.5f'|format(params.near[1]) }}{% endif %}" data-near-input>
+    <div class="form-actions form-actions--between">
+      <div class="btn-row">
+        <button class="btn btn-outline" type="button" data-near-me hidden>{{ icon('crosshair') }} Near me</button>
+        {% if params.near %}<a class="btn btn-link" href="{{ clear_near_url }}">{{ icon('x') }} Clear location</a>{% endif %}
+      </div>
+      <button class="btn btn-primary" type="submit">{{ icon('search') }} Search</button>
+    </div>
+    <p class="field__hint mb-0" data-near-status role="status">
+      {%- if params.near %}Showing cases within {{ params.radius_km|int }} km of your location, nearest first.{% elif params.near_invalid %}We could not read that location. Please try “Near me” again.{% endif -%}
+    </p>
+  </form>
+
+  <p class="muted mt-4" aria-live="polite">
+    {{ result.total }} {{ 'case' if result.total == 1 else 'cases' }} found{% if result.pages > 1 %} · page {{ result.page }} of {{ result.pages }}{% endif %}
+  </p>
+
+  {% if cards %}
+  <div class="pet-grid">
+    {% for card in cards %}{{ pet_card(card, message_label="Message Owner") }}{% endfor %}
+  </div>
+  {% if prev_url or next_url %}
+  <nav class="pagination" aria-label="Pages">
+    {% if prev_url %}<a class="btn btn-pale" href="{{ prev_url }}" rel="prev">{{ icon('arrow-left') }} Previous</a>{% endif %}
+    {% if next_url %}<a class="btn btn-pale" href="{{ next_url }}" rel="next">Next {{ icon('arrow-right') }}</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  {% if params.q or params.species or params.near or params.status != 'lost' %}
+  {{ empty_state("No cases match your search", "Try a different word, a wider distance, or clear the filters.", url_for('pets.browse'), "Clear filters", icon_name="search") }}
+  {% else %}
+  {{ empty_state("No lost pets reported right now", "That's good news! If your pet is missing, file a report so finders can reach you.", url_for('pets.new'), "Report a Lost Pet", icon_name="paw") }}
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/lost_pet.js') }}"></script>
+{% endblock %}

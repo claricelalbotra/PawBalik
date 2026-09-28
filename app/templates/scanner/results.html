@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import callout, disclaimer, similarity_badge, map_buttons, empty_state %}
+{% from "partials/cards.html" import pet_card %}
+{% from "partials/forms.html" import csrf_input %}
+{% from "sightings/_form.html" import sighting_fields %}
+{% set nav_active = "match" %}
+{% block title %}Scan Results{% endblock %}
+
+{#- A Pet Sighting returned by the Lost Pet Scanner: everything the owner needs to act (SPEC 5.2). -#}
+{% macro sighting_result(r) -%}
+{%- set s = r.sighting -%}
+<article class="pet-card sighting-result">
+  <div class="pet-card__media">
+    {% if r.photo_url %}
+    <img src="{{ r.photo_url }}" alt="{{ r.photo_alt or 'Photo of the sighted animal' }}" loading="lazy" decoding="async">
+    {% else %}
+    <div class="pet-card__placeholder">{{ icon('paw') }}</div>
+    {% endif %}
+    {% if r.similarity is not none and r.similarity is defined %}
+    <span class="pet-card__badge">{{ similarity_badge(r.similarity, r.tier) }}</span>
+    {% endif %}
+  </div>
+  <div class="pet-card__body">
+    <div class="pet-card__head">
+      <h3 class="pet-card__title">{{ r.title or 'Sighted animal' }}</h3>
+      <span class="chip chip--sighting">Seen {{ s.seen_ago }}</span>
+    </div>
+    {% if r.tier_label %}<p class="tier-label tier-label--{{ r.tier }} mb-0">{{ r.tier_label }}</p>{% endif %}
+    {% if r.subtitle %}<p class="pet-card__subtitle">{{ r.subtitle }}</p>{% endif %}
+    <ul class="pet-card__meta">
+      <li>{{ icon('map-pin') }}<span>Seen
+        {%- if r.distance_km is not none and r.distance_km is defined %} {{ r.distance_km|km }} away{% if s.seen_place %},{% endif %}{% endif %}
+        {%- if s.seen_place %} {{ s.seen_place }}{% endif %}</span></li>
+      <li>{{ icon('calendar') }}<span>{{ s.seen_at_label }}</span></li>
+      <li>{{ icon('heart') }}<span>Condition: {{ s.condition_label }}{% if s.is_holding_animal %} · the finder is keeping it safe{% endif %}</span></li>
+      <li>{{ icon('user') }}<span>Finder: {{ s.contact_name }}</span></li>
+      {% if s.contact_phone %}
+      <li>{{ icon('phone') }}<span><a href="{{ tel_href(s.contact_phone) }}">{{ s.contact_phone|phone }}</a></span></li>
+      {% else %}
+      <li>{{ icon('chat') }}<span>Prefers in-app messages</span></li>
+      {% endif %}
+    </ul>
+    {% if r.visual_check_unavailable %}
+    <p class="field__hint mb-0">{{ icon('info') }} Photo comparison was unavailable; this score uses the listed details only.</p>
+    {% endif %}
+    {% if r.why and (r.why.matching_features or r.why.differences) %}
+    <details class="pet-card__why">
+      <summary>Why similar?</summary>
+      {% if r.why.matching_features %}<strong>Matching features</strong>
+      <ul>{% for f in r.why.matching_features %}<li>{{ f }}</li>{% endfor %}</ul>{% endif %}
+      {% if r.why.differences %}<strong>Notable differences</strong>
+      <ul>{% for d in r.why.differences %}<li>{{ d }}</li>{% endfor %}</ul>{% endif %}
+    </details>
+    {% endif %}
+    {{ map_buttons(s.lat, s.lng) }}
+    <div class="pet-card__actions">
+      <a class="btn btn-pale" href="{{ s.detail_url }}">View Details</a>
+      <a class="btn btn-primary" href="{{ s.message_url }}">{{ icon('chat') }} Message finder</a>
+    </div>
+  </div>
+</article>
+{%- endmacro %}
+
+{% macro result_grid(rows) -%}
+<div class="pet-grid">
+  {% for r in rows %}
+    {% if r.sighting is defined and r.sighting %}{{ sighting_result(r) }}{% else %}{{ pet_card(r) }}{% endif %}
+  {% endfor %}
+</div>
+{%- endmacro %}
+
+{% block content %}
+{%- set found_mode = scan.mode == 'found' -%}
+<div class="container scan-results">
+{% if scan.status != 'complete' %}
+  {{ empty_state("This scan did not finish",
+                 "The photo could not be compared. Please try again with a clear photo of one dog or cat.",
+                 url_for('scanner.found') if found_mode else url_for('scanner.lost'), "Scan another photo",
+                 icon_name="warning") }}
+{% else %}
+  {%- set n = relevant|length -%}
+  <header class="results-header">
+    <h1 class="results-header__title">
+      {% if n %}We found <span class="accent">{{ n }} possible match{{ '' if n == 1 else 'es' }}</span>
+      {% elif found_mode %}No similar lost-pet reports <span class="accent">right now</span>
+      {% else %}No similar sightings <span class="accent">right now</span>{% endif %}
+    </h1>
+    <p class="muted mb-0">
+      {{ scan.mode|label('ScanMode') }} · {{ scan.created_at|datetime }}
+      {% if source_report %} · for <a href="{{ url_for('cases.detail', report_id=source_report.id) }}">{{ source_report.pet_name }} ({{ source_report.case_number }})</a>{% endif %}
+    </p>
+  </header>
+
+  {% for warning in warnings %}
+  <div class="mt-2">{% call callout(None, "warn", "warning") %}<p>{{ warning }}</p>{% endcall %}</div>
+  {% endfor %}
+
+  <div class="split split--results mt-4">
+    <section class="card scan-summary" aria-label="Your scanned photo">
+      {% if scanned_photo_url %}
+      <img class="scan-summary__thumb" src="{{ scanned_photo_url }}" alt="Your scanned photo" width="84" height="84">
+      {% endif %}
+      <div class="stack-sm">
+        <p class="mb-0"><strong>{{ 'Photo from your report' if scan.trigger == 'background' else 'Your scanned photo' }}</strong></p>
+        <span class="pill-success">{{ icon('check') }} Scan Complete</span>
+        <p class="mb-0 small"><a href="{{ url_for('scanner.found') if found_mode else url_for('scanner.lost') }}">Scan another photo</a></p>
+      </div>
+    </section>
+
+    {% if found_mode %}
+    {% call callout(S.NONE_LOOK_RIGHT_TITLE, "success", symbol="?") %}
+    <p>{{ S.NONE_LOOK_RIGHT_BODY }}</p>
+    {% if can_report_sighting %}
+    <a class="btn btn-primary" href="{{ url_for('sightings.new', scan_id=scan.id) }}" data-open-modal="sighting-modal">{{ icon('flag') }} {{ S.REPORT_AS_SIGHTING }}</a>
+    {% elif existing_sighting %}
+    <a class="btn btn-pale" href="{{ url_for('sightings.detail', sighting_id=existing_sighting.id) }}">{{ icon('check-circle') }} You reported this as a sighting</a>
+    {% else %}
+    <a class="btn btn-primary" href="{{ url_for('sightings.new') }}">{{ icon('flag') }} {{ S.REPORT_AS_SIGHTING }}</a>
+    {% endif %}
+    {% endcall %}
+    {% else %}
+    {% call callout("Keep looking", "info", "search-paw") %}
+    <p>New sightings are compared with your active reports automatically, and we notify you when a
+      possible match appears. Always check identifying details with the finder.</p>
+    {% if source_report %}<a class="btn btn-pale" href="{{ url_for('cases.detail', report_id=source_report.id) }}">View my case</a>{% endif %}
+    {% endcall %}
+    {% endif %}
+  </div>
+
+  <div class="mt-4">{{ disclaimer() }}</div>
+
+  <section class="section" aria-labelledby="matches-title">
+    <h2 id="matches-title">Possible Matches</h2>
+    {% if relevant %}
+      {{ result_grid(relevant) }}
+    {% else %}
+      {% call empty_state("No close matches yet",
+                          S.NO_MATCH_FOUND_SCANNER if found_mode else S.NO_MATCH_LOST_SCANNER,
+                          icon_name="search-paw") %}
+        {% if found_mode and can_report_sighting %}
+        <a class="btn btn-primary" href="{{ url_for('sightings.new', scan_id=scan.id) }}" data-open-modal="sighting-modal">{{ icon('flag') }} Submit as Pet Sighting</a>
+        {% elif found_mode and not existing_sighting %}
+        <a class="btn btn-primary" href="{{ url_for('sightings.new') }}">{{ icon('flag') }} Submit as Pet Sighting</a>
+        {% endif %}
+      {% endcall %}
+    {% endif %}
+
+    {% if weak_count %}
+      {% if include_weak %}
+      <h3 class="mt-6">Weaker results</h3>
+      <p class="muted">These are below 40% visual similarity and are less likely to be the same animal.</p>
+      {{ result_grid(weak) }}
+      <p class="mt-4"><a class="btn btn-pale" href="{{ url_for('scanner.results', scan_id=scan.id) }}">{{ icon('eye-off') }} Hide weaker results</a></p>
+      {% else %}
+      <p class="mt-4"><a class="btn btn-pale" href="{{ url_for('scanner.results', scan_id=scan.id, weak=1) }}">{{ icon('list') }} Show weaker results ({{ weak_count }})</a></p>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  {% if can_report_sighting %}
+  <dialog class="modal sighting-modal" id="sighting-modal" aria-labelledby="sighting-modal-title">
+    <form class="form modal__form" method="post" enctype="multipart/form-data"
+          action="{{ url_for('sightings.new', scan_id=scan.id) }}">
+      <div class="modal__header">
+        <h2 class="modal__title" id="sighting-modal-title">Report a Pet Sighting</h2>
+        <button class="modal__close" type="button" data-close-modal aria-label="Close">&times;</button>
+      </div>
+      <div class="modal__body">
+        {{ csrf_input() }}
+        <input type="hidden" name="scan_id" value="{{ scan.id }}">
+        {{ sighting_fields(values, errors, {
+            'species_options': species_options, 'condition_options': condition_options,
+            'size_options': size_options, 'contact_pref_options': contact_pref_options,
+            'max_photos': max_photos, 'today': today, 'scan_photo_url': scanned_photo_url,
+            'id_prefix': 'm'}) }}
+      </div>
+      <div class="modal__footer">
+        <button class="btn btn-pale" type="button" data-close-modal>Cancel</button>
+        <button class="btn btn-primary" type="submit">{{ icon('send') }} Submit</button>
+      </div>
+    </form>
+  </dialog>
+  {% endif %}
+{% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+{% endblock %}

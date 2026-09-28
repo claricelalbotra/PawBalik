@@ -1,0 +1,30 @@
+{#- One chat bubble for a message dict from message_service.serialize_message().
+    static/js/messages.js clones the same markup from <template> elements (rendered with
+    message_bubble(sample, as_template=True)) and fills the [data-slot] parts with
+    textContent / attributes only - keep the slot names in sync with messages.js. -#}
+{% macro message_bubble(m, last_read_mine_id=0, as_template=False) -%}
+{%- set side = 'system' if m.type == 'system' else ('mine' if m.mine else 'theirs') -%}
+<div class="bubble bubble--{{ side }} bubble--{{ m.type }}"{% if not as_template %} data-message-id="{{ m.id }}" id="m-{{ m.id }}"{% endif %}>
+  {%- if m.type == 'location_pin' %}
+  <div class="pin-card">
+    <p class="pin-card__title">{{ icon('map-pin') }}<span data-slot="pin-title">{{ (m.location.label if m.location else None) or 'Shared location' }}</span></p>
+    <p class="pin-card__coords" data-slot="pin-coords">{% if m.location %}{{ '%.6f'|format(m.location.lat) }}, {{ '%.6f'|format(m.location.lng) }}{% endif %}</p>
+    <p class="bubble__text" data-slot="text"{% if not m.body %} hidden{% endif %}>{{ m.body or '' }}</p>
+    <div class="btn-row">
+      <a class="btn btn-outline btn-sm" data-slot="pin-view" href="{{ m.location.view_url if m.location else '#' }}" target="_blank" rel="noopener">{{ icon('map-pin') }} Open in Google Maps</a>
+      <a class="btn btn-green btn-sm" data-slot="pin-directions" href="{{ m.location.directions_url if m.location else '#' }}" target="_blank" rel="noopener">{{ icon('directions') }} Get Directions</a>
+    </div>
+  </div>
+  {%- elif m.type == 'image' %}
+  <a class="bubble__photo" data-slot="photo-link" data-photo-viewer href="{{ m.photo.full_url if m.photo else '#' }}" target="_blank" rel="noopener">
+    <img data-slot="photo-img" src="{{ m.photo.thumb_url if m.photo else '' }}" alt="Photo shared in this conversation (tap to enlarge)" loading="lazy" width="200" height="200">
+  </a>
+  <p class="bubble__text" data-slot="text"{% if not m.body %} hidden{% endif %}>{{ m.body or '' }}</p>
+  {%- elif m.type == 'system' %}
+  <p class="bubble__text" data-slot="text">{{ icon('info') }} <span data-slot="system-text">{{ m.body or '' }}</span></p>
+  {%- else %}
+  <p class="bubble__text" data-slot="text">{{ m.body or '' }}</p>
+  {%- endif %}
+  <span class="bubble__time"><time data-slot="time" datetime="{{ m.created_at or '' }}" title="{{ m.date_label }}">{{ m.time_label }}</time><span class="bubble__seen" data-slot="seen"{% if not (m.mine and m.id and m.id == last_read_mine_id) %} hidden{% endif %}> · Seen</span></span>
+</div>
+{%- endmacro %}

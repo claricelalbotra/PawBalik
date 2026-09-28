@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import callout %}
+{% from "rescue/_provider_card.html" import provider_card %}
+{% block title %}{{ provider.name }}{% endblock %}
+{% block content %}
+<div class="container container--narrow">
+  <p><a class="btn btn-link" href="{{ url_for('rescue.directory') }}">{{ icon('arrow-left') }} Back to the Rescue Directory</a></p>
+
+  {% if not provider.is_active %}
+  {% call callout("Inactive listing", "warn", "eye-off") %}<p>This provider is hidden from the public directory. Only administrators can see this page.</p>{% endcall %}
+  {% endif %}
+
+  {{ provider_card(view, show_detail_link=False, heading_level=1) }}
+
+  {% if view.lat is not none and not view.in_service_area %}
+  <p class="muted mt-4">{{ icon('info') }} This location is outside {{ config.SERVICE_AREA_NAME }}.</p>
+  {% endif %}
+
+  {% if view.hours_text and not view.is_24_7 and view.open_now is none %}
+  <p class="muted mt-4">{{ icon('info') }} We could not read these opening hours automatically. Please call before you go.</p>
+  {% endif %}
+
+  <div class="emergency-note mt-6" role="note">
+    {% call callout(None, "danger", "warning") %}<p>{{ S.EMERGENCY_NOTE }}</p>{% endcall %}
+  </div>
+
+  {% if current_user.is_authenticated and current_user.is_admin %}
+  <p class="mt-4"><a class="btn btn-outline btn-sm" href="{{ url_for('admin.provider_edit', provider_id=provider.id) }}">{{ icon('edit') }} Edit in admin</a></p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state %}
+{% from "partials/cards.html" import pet_card %}
+{% block title %}My Cases{% endblock %}
+{% block content %}
+<div class="container">
+  {% call page_header("My", "Cases", subtitle="Your lost pet reports and the pet sightings you submitted.", icon_name="clipboard") %}
+  <div class="btn-row mt-4">
+    <a class="btn btn-primary" href="{{ url_for('pets.new') }}">{{ icon('report') }} Report a Lost Pet</a>
+    <a class="btn btn-pale" href="{{ url_for('scanner.found') }}">{{ icon('scan') }} Match a Found Pet</a>
+  </div>
+  {% endcall %}
+
+  <div class="stat-grid" role="list" aria-label="Summary">
+    <div class="stat" role="listitem"><span class="stat__value">{{ counts.lost }}</span><span class="stat__label">Still lost</span></div>
+    <div class="stat" role="listitem"><span class="stat__value">{{ counts.found }}</span><span class="stat__label">Found</span></div>
+    <div class="stat" role="listitem"><span class="stat__value">{{ counts.matches }}</span><span class="stat__label">Possible matches</span></div>
+    <div class="stat" role="listitem"><span class="stat__value">{{ counts.sightings_active }}</span><span class="stat__label">Active sightings</span></div>
+  </div>
+
+  <section class="section mt-6" aria-labelledby="my-reports-title">
+    <div class="cluster cluster--between">
+      <h2 id="my-reports-title" class="mb-0">{{ icon('report') }} My Lost Pet Reports</h2>
+      {% if report_cards %}<span class="muted">{{ report_cards|length }} total{% if counts.closed %} · {{ counts.closed }} closed{% endif %}</span>{% endif %}
+    </div>
+    {% if report_cards %}
+    <div class="pet-grid mt-4">
+      {% for item in report_cards %}
+      <div class="dashboard-item">
+        {{ pet_card(item.card, detail_label="Open case") }}
+        <p class="dashboard-item__meta">
+          {% if item.matches %}
+          <a href="{{ url_for('cases.detail', report_id=item.report.id) }}#matches-title">{{ icon('sparkle') }} {{ item.matches }} possible {{ 'match' if item.matches == 1 else 'matches' }}</a>
+          {% elif item.report.status == 'lost' %}
+          <a href="{{ url_for('scanner.lost', lost_report_id=item.report.id) }}">{{ icon('scan') }} Run Lost Pet Scanner</a>
+          {% else %}
+          <span class="muted">{{ item.report.status|label('ReportStatus') }} {{ item.report.updated_at|timeago }}</span>
+          {% endif %}
+        </p>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ empty_state("No lost pet reports yet", "If your dog or cat is missing, file a report. You will get a case number and we will check new sightings for possible matches.", url_for('pets.new'), "Report a Lost Pet", icon_name="report") }}
+    {% endif %}
+  </section>
+
+  <section class="section" aria-labelledby="my-sightings-title">
+    <div class="cluster cluster--between">
+      <h2 id="my-sightings-title" class="mb-0">{{ icon('map-pin') }} My Pet Sightings</h2>
+      {% if sighting_cards %}<span class="muted">Private: only you, administrators and owners whose search returns them can see these.</span>{% endif %}
+    </div>
+    {% if sighting_cards %}
+    <div class="pet-grid mt-4">
+      {% for item in sighting_cards %}{{ pet_card(item.card, detail_label="Open sighting") }}{% endfor %}
+    </div>
+    {% else %}
+    {{ empty_state("No sightings yet", "Found a dog or cat? Scan its photo to look for a matching lost-pet report. If nothing matches, you can submit a private sighting so the owner can find it.", url_for('scanner.found'), "Match a Found Pet", icon_name="scan") }}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

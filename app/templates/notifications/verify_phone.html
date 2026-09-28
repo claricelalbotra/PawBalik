@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout %}
+{% from "partials/forms.html" import csrf_input %}
+{% block title %}Verify your mobile number{% endblock %}
+{% set nav_active = "account" %}
+{% block content %}
+<div class="container container--narrow">
+  {{ page_header("Verify your", "mobile number", subtitle="We send possible-match alerts by SMS only to verified numbers.", icon_name="phone", art=False) }}
+
+  <section class="card card-pad verify-card" aria-labelledby="verify-title">
+  {% if not current_user.mobile_e164 %}
+    <h2 id="verify-title" class="h3">Add your mobile number first</h2>
+    <p>Your account has no mobile number yet. Add a Philippine mobile number (09XX XXX XXXX) in your profile, then come back here to verify it.</p>
+    <a class="btn btn-primary" href="{{ url_for('auth.profile') }}">{{ icon('settings') }} Go to Profile &amp; Settings</a>
+
+  {% elif current_user.mobile_verified %}
+    <div class="verify-done">
+      <span class="verify-done__icon" aria-hidden="true">{{ icon('check-circle') }}</span>
+      <h2 id="verify-title" class="h3">Your number is verified</h2>
+      <p><strong>{{ current_user.mobile_e164|phone }}</strong> can now receive SMS alerts when a possible match is found for your lost pet (at most {{ config.SMS_DAILY_MATCH_LIMIT }} alerts a day).</p>
+      {% if not current_user.sms_opt_in %}
+      <p class="muted">SMS alerts are turned off in your profile. You can turn them on in <a href="{{ url_for('auth.profile') }}">Profile &amp; Settings</a>.</p>
+      {% endif %}
+      <div class="btn-row verify-done__actions">
+        <a class="btn btn-primary" href="{{ next_url or url_for('cases.dashboard') }}">Continue</a>
+        <a class="btn btn-pale" href="{{ url_for('auth.profile') }}">Profile &amp; Settings</a>
+      </div>
+    </div>
+
+  {% else %}
+    <h2 id="verify-title" class="visually-hidden">Verify {{ current_user.mobile_e164|phone }}</h2>
+    <ol class="verify-steps">
+      <li class="verify-step{% if status and status.has_active_code %} is-done{% else %} is-active{% endif %}">
+        <span class="verify-step__num" aria-hidden="true">1</span>
+        <div class="verify-step__body">
+          <h3 class="h4">Send a code to {{ current_user.mobile_e164|phone }}</h3>
+          <p class="muted">We will text you a {{ code_length }}-digit code. It is valid for {{ ttl_minutes }} minutes. Wrong number? <a href="{{ url_for('auth.profile') }}">Change it in your profile</a>.</p>
+          <form method="post" action="{{ url_for('notifications.verify_phone') }}">
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="send">
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+            <button class="btn {% if status and status.has_active_code %}btn-pale{% else %}btn-primary{% endif %}" type="submit"
+                    data-resend-button data-resend-in="{{ status.resend_in if status else 0 }}"
+                    {% if status and status.resend_in %}disabled aria-describedby="resend-wait"{% endif %}>
+              {{ icon('send') }} {% if status and (status.has_active_code or status.locked) %}Send a new code{% else %}Send code{% endif %}
+            </button>
+            {% if status and status.resend_in %}
+            <p class="field__hint" id="resend-wait" data-resend-wait>You can ask for a new code in <span data-resend-seconds>{{ status.resend_in }}</span> seconds.</p>
+            {% endif %}
+          </form>
+        </div>
+      </li>
+
+      <li class="verify-step{% if status and status.has_active_code %} is-active{% endif %}">
+        <span class="verify-step__num" aria-hidden="true">2</span>
+        <div class="verify-step__body">
+          <h3 class="h4">Enter the code</h3>
+          {% if status and status.has_active_code %}
+          <form class="form" method="post" action="{{ url_for('notifications.verify_phone') }}" novalidate>
+            {{ csrf_input() }}
+            <input type="hidden" name="action" value="verify">
+            {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+            <div class="field{% if error %} has-error{% endif %}">
+              <label class="field__label" for="otp-code">{{ code_length }}-digit code<span class="req" aria-hidden="true">*</span></label>
+              <input class="input otp-input" id="otp-code" name="code" type="text" inputmode="numeric"
+                     autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="{{ code_length }}" required autofocus
+                     aria-describedby="otp-hint{% if error %} otp-error{% endif %}"{% if error %} aria-invalid="true"{% endif %}>
+              <p class="field__hint" id="otp-hint">{{ status.attempts_left }} {{ 'try' if status.attempts_left == 1 else 'tries' }} left{% if status.expires_at %} · expires at {{ status.expires_at|time }}{% endif %}.</p>
+              {% if error %}<p class="field__error" id="otp-error" role="alert">{{ error }}</p>{% endif %}
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" type="submit">{{ icon('check') }} Verify number</button>
+            </div>
+          </form>
+          {% else %}
+            {% if error %}<p class="field__error" role="alert">{{ error }}</p>{% endif %}
+            <p class="muted mb-0">{% if status and status.locked %}Too many wrong tries. Request a new code above.{% else %}Send a code first, then type it here.{% endif %}</p>
+          {% endif %}
+        </div>
+      </li>
+    </ol>
+  {% endif %}
+  </section>
+
+  <p class="center mt-4">
+    <a href="{{ next_url or url_for('cases.dashboard') }}">{% if current_user.mobile_verified %}Back{% else %}Skip for now{% endif %}</a>
+  </p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+{% endblock %}

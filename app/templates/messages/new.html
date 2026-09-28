@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, status_badge, callout %}
+{% from "partials/forms.html" import csrf_input, input_field %}
+{% set nav_active = "messages" %}
+{% block title %}{% if target and is_owner %}Message the finder{% else %}Message the owner{% endif %}{% endblock %}
+{% block content %}
+<div class="container container--narrow">
+  {% if target is none %}
+    {#- An owner came from a sighting without saying which of their cases it is about. -#}
+    {{ page_header("Which case is this", "about?", subtitle="Choose the lost pet case you want to talk to the finder about.", icon_name="chat", art=False) }}
+    <form class="card card-pad form stack" method="get" action="{{ url_for('messages.new') }}">
+      <input type="hidden" name="sighting_id" value="{{ sighting_id }}">
+      <div class="field">
+        <label class="field__label" for="choose-case">Your case<span class="req" aria-hidden="true">*</span></label>
+        <select class="input" id="choose-case" name="lost_report_id" required>
+          {% for r in choices %}<option value="{{ r.id }}">{{ r.pet_name }} · {{ r.case_number }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">Continue</button>
+      </div>
+    </form>
+  {% else %}
+    {%- set report = target.report -%}
+    {% if is_owner %}
+      {{ page_header("Message the", "finder", subtitle="Ask about the pet this person sighted. It may be your pet, or only a similar-looking one.", icon_name="chat", art=False) }}
+    {% else %}
+      {{ page_header("Message the", "owner", subtitle="Tell the owner what you know. Your message is private to the two of you.", icon_name="chat", art=False) }}
+    {% endif %}
+
+    <section class="card card-pad new-conversation__case" aria-label="Case">
+      <span class="chat__thumb" aria-hidden="true">
+        {% if report_photo_url %}<img src="{{ report_photo_url }}" alt="" width="64" height="64">{% else %}{{ icon('paw') }}{% endif %}
+      </span>
+      <div>
+        <p class="mb-0"><strong>{{ report.pet_name }}</strong> <span class="muted">· {{ report.case_number }}</span> {{ status_badge(report.status) }}</p>
+        <p class="muted mb-0">{{ report.species|label('Species') }}{% if report.breed %} · {{ report.breed }}{% endif %}{% if report.colors %} · {{ report.colors }}{% endif %}</p>
+        <p class="mb-0">To: <strong>{{ recipient.full_name }}</strong>{% if target.sighting %} <span class="muted">· about their sighting from {{ target.sighting.seen_at|date }}</span>{% endif %}</p>
+      </div>
+    </section>
+
+    <form class="card card-pad form stack mt-4" method="post" action="{{ url_for('messages.new') }}" novalidate>
+      {{ csrf_input() }}
+      <input type="hidden" name="lost_report_id" value="{{ report.id }}">
+      {% if target.sighting %}<input type="hidden" name="sighting_id" value="{{ target.sighting.id }}">{% endif %}
+      {%- if body_value is none -%}
+        {%- if is_owner -%}
+          {%- set body_value = "Hi " ~ recipient.first_name ~ ", the pet in your sighting looks similar to my " ~ (report.species|label('Species'))|lower ~ " " ~ report.pet_name ~ " (" ~ report.case_number ~ "). Could you tell me more about it?" -%}
+        {%- else -%}
+          {%- set body_value = "Hi " ~ recipient.first_name ~ ", I saw your report for " ~ report.pet_name ~ " (" ~ report.case_number ~ "). I may have seen a similar " ~ (report.species|label('Species'))|lower ~ "." -%}
+        {%- endif -%}
+      {%- endif -%}
+      {{ input_field('body', 'Your message', value=body_value, type='textarea', required=target.existing is none, error=error, maxlength=config.MESSAGE_MAX_LENGTH, rows=5, id='first-message',
+                     hint='You can share a location pin or a photo once the conversation is open.') }}
+      {% call callout(None, "info", "lock") %}<p class="mb-0">{{ phone_note }}</p>{% endcall %}
+      <div class="form-actions form-actions--between">
+        <a class="btn btn-pale" href="{{ url_for('cases.detail', report_id=report.id) }}">Cancel</a>
+        <button class="btn btn-primary" type="submit">{{ icon('send') }} {% if target.existing %}Open conversation{% else %}Send message{% endif %}</button>
+      </div>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

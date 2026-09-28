@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout %}
+{% from "partials/forms.html" import csrf_input, photo_dropzone %}
+{% from "lost_pet/_fields.html" import pet_info_fields, features_fields, where_when_fields, contact_reward_fields %}
+{% block title %}Edit {{ report.pet_name }} · {{ report.case_number }}{% endblock %}
+{% block content %}
+{%- set e = errors -%}
+{%- set v = values -%}
+<div class="container container--form">
+  {{ page_header("Edit", report.pet_name, subtitle="Case " ~ report.case_number ~ ". The case number and status history do not change.", icon_name="edit", art=False) }}
+
+  {% if errors %}
+  {% call callout("Please check the highlighted fields", "danger", "warning") %}
+  <ul class="mb-0">{% for message in errors.values() %}<li>{{ message }}</li>{% endfor %}</ul>
+  {% endcall %}
+  {% endif %}
+
+  <form class="stack-lg mt-4" method="post" action="{{ url_for('pets.edit', report_id=report.id) }}" enctype="multipart/form-data" data-report-edit data-max-photos="{{ max_photos }}">
+    {{ csrf_input() }}
+
+    <section class="form-section" aria-labelledby="edit-pet-title">
+      <h2 class="form-section__title" id="edit-pet-title">{{ icon('paw') }} Pet Information</h2>
+      {{ pet_info_fields(v, e, breed_suggestions) }}
+    </section>
+
+    <section class="form-section" aria-labelledby="edit-photos-title">
+      <h2 class="form-section__title" id="edit-photos-title">{{ icon('image') }} Photos</h2>
+      <p class="muted">Choose the main photo (used for matching), remove photos, or add new ones. Keep 1 to {{ max_photos }} photos.</p>
+      {% if e.get("photos") %}<p class="field__error">{{ e.get("photos") }}</p>{% endif %}
+      <fieldset class="field">
+        <legend class="field__label">Current photos</legend>
+        <ul class="photo-manage" role="list">
+          {% for photo in photos %}
+          <li class="photo-manage__item">
+            <img src="{{ photo.url }}" alt="Photo {{ loop.index }} of {{ report.pet_name }}" loading="lazy">
+            <label class="checkbox">
+              <input type="radio" name="primary_photo_id" value="{{ photo.id }}"{% if photo.is_primary %} checked{% endif %}>
+              <span>Main photo</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" name="remove_photo" value="{{ photo.id }}">
+              <span>Remove</span>
+            </label>
+          </li>
+          {% endfor %}
+        </ul>
+      </fieldset>
+      <div class="mt-4">
+        {{ photo_dropzone("photos", "Add photos", max_files=max_photos, required=False, hint="Optional. New photos are added after the current ones (" ~ free_slots ~ " free slot" ~ ('' if free_slots == 1 else 's') ~ " right now).") }}
+      </div>
+    </section>
+
+    <section class="form-section" aria-labelledby="edit-features-title">
+      <h2 class="form-section__title" id="edit-features-title">{{ icon('search-paw') }} Identifying Features</h2>
+      {{ features_fields(v, e) }}
+    </section>
+
+    <section class="form-section" aria-labelledby="edit-where-title">
+      <h2 class="form-section__title" id="edit-where-title">{{ icon('map-pin') }} Where &amp; When Lost</h2>
+      {{ where_when_fields(v, e, today) }}
+    </section>
+
+    <section class="form-section" aria-labelledby="edit-contact-title">
+      <h2 class="form-section__title" id="edit-contact-title">{{ icon('phone') }} Contact &amp; Reward</h2>
+      {{ contact_reward_fields(v, e) }}
+    </section>
+
+    <div class="form-actions form-actions--between">
+      <a class="btn btn-pale" href="{{ url_for('cases.detail', report_id=report.id) }}">Cancel</a>
+      <button class="btn btn-primary btn-lg" type="submit">{{ icon('check') }} Save changes</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+<script type="module" src="{{ url_for('static', filename='js/lost_pet.js') }}"></script>
+{% endblock %}

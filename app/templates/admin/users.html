@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state, avatar %}
+{% from "admin/_macros.html" import admin_nav, pagination, filter_bar with context %}
+{% block title %}Users{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("Manage", "Users", subtitle="Deactivated users cannot log in. Their reports stay unless you hide them.", icon_name="user", art=False) }}
+  {{ admin_nav('users') }}
+
+  <div class="mt-4">
+  {% call filter_bar(url_for('admin.users')) %}
+    <div class="field">
+      <label class="field__label" for="f-q">Search</label>
+      <input class="input" id="f-q" name="q" value="{{ q }}" placeholder="Name, email or mobile">
+    </div>
+    <div class="field">
+      <label class="field__label" for="f-role">Role</label>
+      <select class="input" id="f-role" name="role" data-auto-submit>
+        <option value="">Any role</option>
+        {% for value, label in role_choices %}<option value="{{ value }}"{% if role == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label class="field__label" for="f-state">Account</label>
+      <select class="input" id="f-state" name="state" data-auto-submit>
+        <option value="">All</option>
+        <option value="active"{% if state == 'active' %} selected{% endif %}>Active</option>
+        <option value="inactive"{% if state == 'inactive' %} selected{% endif %}>Deactivated</option>
+      </select>
+    </div>
+  {% endcall %}
+  </div>
+
+  {% if page.items %}
+  <div class="table-wrap mt-4">
+    <table class="table">
+      <thead>
+        <tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Mobile</th><th scope="col">Role</th><th scope="col">Joined</th><th scope="col">Last login</th><th scope="col">Account</th></tr>
+      </thead>
+      <tbody>
+        {% for u in page.items %}
+        <tr{% if not u.is_active %} class="is-hidden-row"{% endif %}>
+          <td><span class="name-with-avatar">{{ avatar(u, "sm") }} {{ u.full_name }}</span>{% if u.id == current_user.id %} <span class="chip">You</span>{% endif %}</td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.mobile_e164|phone }}{% if u.mobile_verified %} <span class="chip chip--found" title="Verified">{{ icon('check') }}<span class="visually-hidden">verified</span></span>{% endif %}</td>
+          <td>{{ u.role|label('UserRole') }}</td>
+          <td>{{ u.created_at|date }}</td>
+          <td>{{ u.last_login_at|timeago if u.last_login_at else 'Never' }}</td>
+          <td>
+            {% if u.id == current_user.id %}
+              <span class="chip chip--found">Active</span>
+            {% else %}
+            <form class="moderation-form" method="post" action="{{ url_for('admin.user_active', user_id=u.id) }}"
+              {% if u.is_active %}data-confirm="Deactivate {{ u.full_name }}? They will be logged out and cannot log in."{% endif %}>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="next" value="{{ request.full_path }}">
+              <input type="hidden" name="active" value="{{ '0' if u.is_active else '1' }}">
+              {% if u.is_active %}
+              <label class="visually-hidden" for="reason-u{{ u.id }}">Reason to deactivate {{ u.full_name }}</label>
+              <input class="input input-sm" id="reason-u{{ u.id }}" name="reason" maxlength="255" placeholder="Reason (optional)">
+              <button class="btn btn-danger btn-sm" type="submit">Deactivate</button>
+              {% else %}
+              <span class="chip chip--closed">Deactivated</span>
+              <button class="btn btn-outline btn-sm" type="submit">Reactivate</button>
+              {% endif %}
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pagination(page) }}
+  {% else %}
+  <div class="mt-4">{{ empty_state("No users found", "Try clearing the filters.", url_for('admin.users'), "Clear filters", icon_name="user") }}</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/admin.js') }}"></script>{% endblock %}

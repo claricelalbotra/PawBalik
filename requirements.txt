@@ -1,0 +1,47 @@
+# PawBalik - pinned dependencies (tested on Python 3.13, Windows 11).
+# Install with:  python -m pip install -r requirements.txt
+# The schema lives in database/schema.sql (no Alembic / Flask-Migrate).
+
+# --- Web framework -------------------------------------------------------------
+Flask==3.1.3
+Werkzeug==3.1.8
+Jinja2==3.1.6
+Flask-Login==0.6.3
+Flask-WTF==1.3.0
+WTForms==3.2.2
+Flask-Limiter==4.1.1
+limits==5.8.0
+email-validator==2.3.0
+python-dotenv==1.2.3
+
+# --- Database ------------------------------------------------------------------
+SQLAlchemy==2.0.54
+Flask-SQLAlchemy==3.1.1
+PyMySQL==1.2.3
+cryptography==50.0.1          # PyMySQL needs it for MySQL 8 caching_sha2_password auth
+
+# --- Security ------------------------------------------------------------------
+argon2-cffi==25.1.0
+
+# --- Images --------------------------------------------------------------------
+pillow==12.3.0
+pillow_heif==1.8.0            # optional HEIC/HEIF decoding (iPhone photos)
+
+# --- Third-party services --------------------------------------------------------
+requests==2.34.2              # bulksms.com.ph HTTP adapter
+google-genai==2.25.0          # Gemini API (official SDK)
+cloudinary==1.46.2            # photo storage (official SDK)
+firebase-admin==7.7.0         # FCM push (official SDK)
+
+# --- Time zones (Windows has no system tz database; needed by zoneinfo) -----------
+tzdata==2026.4
+
+# --- Optional production WSGI server (Windows friendly) ----------------------------
+waitress==3.0.2
+
+# --- Development & testing ---------------------------------------------------------
+pytest==9.1.1
+responses==0.26.3             # mock `requests` calls (SMS adapter tests)
+freezegun==1.5.5              # freeze time in tests (expiry, OTP, jobs)
+ruff==0.16.8
+black==26.5.1

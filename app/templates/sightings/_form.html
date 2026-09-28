@@ -1,0 +1,95 @@
+{#- Sighting form fields (SPEC 5.4, 16.7), shared by sightings/new.html, sightings/edit.html
+    and the "Report a Pet Sighting" modal on scanner/results.html.
+
+    {% from "sightings/_form.html" import sighting_fields %}
+    {{ sighting_fields(values, errors, opts) }}
+
+    values: dict of field values (see sightings.default_form_values)
+    errors: dict field -> message
+    opts:   dict with species_options, condition_options, size_options, contact_pref_options,
+            max_photos, today, and optional scan_photo_url, show_photos (default True),
+            show_consent (default True), id_prefix (default "s").
+    Imported macros only see Jinja globals, so everything else is passed in. -#}
+{% from "partials/forms.html" import input_field, checkbox_field, toggle_group, photo_dropzone, location_picker %}
+
+{% macro sighting_fields(values, errors, opts) -%}
+{%- set p = opts.id_prefix or 's' -%}
+{%- set show_photos = opts.show_photos is not defined or opts.show_photos -%}
+{%- set show_consent = opts.show_consent is not defined or opts.show_consent -%}
+
+<section class="form-section" aria-labelledby="{{ p }}-where">
+  <h3 class="form-section__title" id="{{ p }}-where">{{ icon('map-pin') }} Where did you find this pet?</h3>
+  {{ location_picker(lat=values.lat, lng=values.lng, place=values.place, required=True,
+                     error=errors.get('location'), label="Location seen",
+                     place_label="Barangay / landmark", id=p ~ '-location') }}
+</section>
+
+<section class="form-section" aria-labelledby="{{ p }}-when">
+  <h3 class="form-section__title" id="{{ p }}-when">{{ icon('calendar') }} When did you find this pet?</h3>
+  <div class="form-grid">
+    {{ input_field('seen_date', 'Date seen', values.seen_date, type='date', required=True,
+                   error=errors.get('seen_date'), id=p ~ '-seen-date', max=opts.today) }}
+    {{ input_field('seen_time', 'Time seen', values.seen_time, type='time', required=True,
+                   id=p ~ '-seen-time', hint='Your best guess is fine.') }}
+  </div>
+</section>
+
+<section class="form-section" aria-labelledby="{{ p }}-about">
+  <h3 class="form-section__title" id="{{ p }}-about">{{ icon('paw') }} About the pet</h3>
+  {% if show_photos %}
+    {% if opts.scan_photo_url %}
+    <div class="sighting-scan-photo">
+      <img src="{{ opts.scan_photo_url }}" alt="The photo you scanned" width="84" height="84">
+      <p class="mb-0">The photo you scanned will be attached to this sighting. You can add
+        up to {{ opts.max_photos - 1 }} more below (optional).</p>
+    </div>
+    {{ photo_dropzone('photos', 'More photos (optional)', max_files=opts.max_photos - 1,
+                      error=errors.get('photos'), id=p ~ '-photos') }}
+    {% else %}
+    {{ photo_dropzone('photos', 'Photo(s) of the pet', max_files=opts.max_photos, required=True,
+                      error=errors.get('photos'), capture=False, id=p ~ '-photos') }}
+    {% endif %}
+  {% endif %}
+  {{ toggle_group('species', 'Type of pet', opts.species_options, value=values.species,
+                  required=True, error=errors.get('species')) }}
+  <div class="form-grid">
+    {{ input_field('breed', 'Breed (if you can tell)', values.breed, error=errors.get('breed'),
+                   id=p ~ '-breed', maxlength=80, placeholder='e.g. Aspin, Puspin, Shih Tzu') }}
+    {{ input_field('colors', 'Colour / pattern', values.colors, error=errors.get('colors'),
+                   id=p ~ '-colors', maxlength=120, placeholder='e.g. brown and white') }}
+    {{ input_field('size', 'Size', values.size, type='select', options=opts.size_options,
+                   error=errors.get('size'), id=p ~ '-size') }}
+    {{ input_field('condition', 'Condition', values.condition, type='select',
+                   options=opts.condition_options, error=errors.get('condition'), id=p ~ '-condition') }}
+  </div>
+  {{ checkbox_field('is_holding_animal', 'I am keeping the animal safe with me right now',
+                    checked=values.is_holding_animal, id=p ~ '-holding') }}
+  {{ input_field('notes', 'Notes', values.notes, type='textarea', error=errors.get('notes'),
+                 id=p ~ '-notes', rows=3, maxlength=1000,
+                 hint='Collar, markings, behaviour, where it went... Do not include private details of other people.') }}
+</section>
+
+<section class="form-section" aria-labelledby="{{ p }}-you">
+  <h3 class="form-section__title" id="{{ p }}-you">{{ icon('user') }} Your Information</h3>
+  <div class="form-grid">
+    {{ input_field('contact_name', 'Full name', values.contact_name, required=True,
+                   error=errors.get('contact_name'), id=p ~ '-name', maxlength=120, autocomplete='name') }}
+    {{ input_field('contact_email', 'Email Address', values.contact_email, type='email',
+                   error=errors.get('contact_email'), id=p ~ '-email', maxlength=255, autocomplete='email') }}
+    {{ input_field('contact_phone', 'Contact Number', values.contact_phone, type='tel',
+                   error=errors.get('contact_phone'), id=p ~ '-phone', autocomplete='tel',
+                   placeholder='09XX XXX XXXX') }}
+  </div>
+  {{ toggle_group('contact_pref', 'How may a pet owner contact you?', opts.contact_pref_options,
+                  value=values.contact_pref, required=True, error=errors.get('contact_pref'),
+                  hint='Your email is never shown to owners. Your phone number is shown only if you choose "In-app messages and phone".') }}
+</section>
+
+{% if show_consent %}
+{{ checkbox_field('consent', S.SIGHTING_CONSENT_LABEL, checked=values.consent, required=True,
+                  error=errors.get('consent'), id=p ~ '-consent') }}
+<p class="field__hint">{{ icon('lock') }} Sightings are private: they are never listed publicly. Only you,
+  the administrators and pet owners whose search returns this sighting as a possible match can see it.
+  <a href="{{ url_for('main.privacy') }}" target="_blank" rel="noopener">Privacy Notice</a></p>
+{% endif %}
+{%- endmacro %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, empty_state %}
+{% from "admin/_macros.html" import admin_nav, pagination with context %}
+{% block title %}Logs{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("System", "Logs", subtitle="Audit trail (logins, admin actions, sighting access), SMS and push delivery.", icon_name="list", art=False) }}
+  {{ admin_nav('logs') }}
+
+  <nav class="admin-tabs mt-4" aria-label="Log type">
+    {% for key, item in kinds.items() %}
+    <a class="btn btn-sm {{ 'btn-primary' if kind == key else 'btn-pale' }}" href="{{ url_for('admin.logs', kind=key) }}"{% if kind == key %} aria-current="page"{% endif %}>{{ item[0] }}</a>
+    {% endfor %}
+  </nav>
+
+  {% if kind == 'audit' %}
+  <form class="admin-filters admin-filters--inline mt-4" method="get" action="{{ url_for('admin.logs') }}" role="search">
+    <input type="hidden" name="kind" value="audit">
+    <label class="field__label" for="f-event">Event starts with</label>
+    <input class="input input-sm" id="f-event" name="event" value="{{ event }}" placeholder="e.g. admin. or auth.login_failed">
+    <button class="btn btn-primary btn-sm" type="submit">{{ icon('filter') }} Filter</button>
+  </form>
+  {% endif %}
+
+  {% if page.items %}
+  <div class="table-wrap mt-4">
+    <table class="table">
+      {% if kind == 'audit' %}
+      <thead><tr><th scope="col">When</th><th scope="col">Event</th><th scope="col">Actor</th><th scope="col">Target</th><th scope="col">IP</th><th scope="col">Details</th></tr></thead>
+      <tbody>
+        {% for row in page.items %}
+        <tr>
+          <td class="nowrap">{{ row.created_at|datetime }}</td>
+          <td><code>{{ row.event }}</code></td>
+          <td>{{ row.actor.full_name if row.actor else 'Guest / system' }}</td>
+          <td>{% if row.target_type %}{{ row.target_type }} #{{ row.target_id }}{% endif %}</td>
+          <td>{{ row.ip or '' }}</td>
+          <td class="table-text">{% if row.details %}{% for k, v in row.details.items() %}<span class="log-detail"><strong>{{ k }}</strong>: {{ v }}</span>{% endfor %}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% elif kind == 'sms' %}
+      <thead><tr><th scope="col">When</th><th scope="col">To</th><th scope="col">Purpose</th><th scope="col">Message</th><th scope="col">Provider</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for row in page.items %}
+        <tr>
+          <td class="nowrap">{{ row.created_at|datetime }}</td>
+          <td class="nowrap">{{ row.to_number|masked_phone }}</td>
+          <td>{{ row.purpose|label('SmsPurpose') }}</td>
+          <td class="table-text">{% if row.purpose == otp_purpose %}<span class="muted">(verification code hidden)</span>{% else %}{{ row.message }}{% endif %}</td>
+          <td>{{ row.provider }}</td>
+          <td><span class="chip chip--{{ 'found' if row.status == 'sent' else 'warn' }}">{{ row.status }}</span>{% if row.error %}<p class="table-note">{{ row.error }}</p>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% else %}
+      <thead><tr><th scope="col">When</th><th scope="col">User</th><th scope="col">Title</th><th scope="col">Status</th></tr></thead>
+      <tbody>
+        {% for row in page.items %}
+        <tr>
+          <td class="nowrap">{{ row.created_at|datetime }}</td>
+          <td>{{ row.user.full_name if row.user else '' }}</td>
+          <td>{{ row.title }}</td>
+          <td><span class="chip chip--{{ 'found' if row.status == 'sent' else 'warn' }}">{{ row.status }}</span>{% if row.error %}<p class="table-note">{{ row.error }}</p>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% endif %}
+    </table>
+  </div>
+  {{ pagination(page) }}
+  {% else %}
+  <div class="mt-4">{{ empty_state("No log entries", "Nothing has been recorded here yet.", None, None, icon_name="list") }}</div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header %}
+{% from "partials/forms.html" import csrf_input, form_errors %}
+{% from "sightings/_form.html" import sighting_fields %}
+{% set nav_active = "match" %}
+{% block title %}Edit Pet Sighting{% endblock %}
+
+{% block content %}
+<div class="container container--form">
+  {{ page_header("Edit", "Pet Sighting", icon_name="edit", art=False,
+                 subtitle="Update the details of your sighting. Photos stay as they are.") }}
+
+  <form class="form card card-pad" method="post" action="{{ url_for('sightings.edit', sighting_id=sighting.id) }}">
+    {{ csrf_input() }}
+    {{ form_errors(error_list) }}
+    {{ sighting_fields(values, errors, {
+        'species_options': species_options, 'condition_options': condition_options,
+        'size_options': size_options, 'contact_pref_options': contact_pref_options,
+        'max_photos': max_photos, 'today': today, 'show_photos': False,
+        'show_consent': False, 'id_prefix': 'e'}) }}
+    <div class="form-actions form-actions--between">
+      <a class="btn btn-pale" href="{{ url_for('sightings.detail', sighting_id=sighting.id) }}">Cancel</a>
+      <button class="btn btn-primary" type="submit">{{ icon('check') }} Save changes</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

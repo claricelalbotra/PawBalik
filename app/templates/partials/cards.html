@@ -1,0 +1,64 @@
+{#- Pet card (SPEC 16.6). `card` is a dict built by app/utils/cards.py
+    (lost_report_card / sighting_card) or by matching_service.results_for_display.
+    Keys: photo_url, photo_alt, similarity, tier, tier_label, title, chip, chip_kind,
+    subtitle, location_prefix, distance_km, place, date_label, person_label,
+    detail_url, message_url, why {matching_features, differences},
+    visual_check_unavailable, case_number, status.
+
+    {% from "partials/cards.html" import pet_card %}
+    <div class="pet-grid">{% for c in cards %}{{ pet_card(c) }}{% endfor %}</div>
+-#}
+{% from "partials/ui.html" import similarity_badge %}
+
+{% macro pet_card(card, message_label="Message", detail_label="View Details") -%}
+<article class="pet-card">
+  <div class="pet-card__media">
+    {% if card.photo_url %}
+    <img src="{{ card.photo_url }}" alt="{{ card.photo_alt or card.title }}" loading="lazy" decoding="async">
+    {% else %}
+    <div class="pet-card__placeholder">{{ icon('paw') }}</div>
+    {% endif %}
+    {% if card.case_number %}<span class="pet-card__corner chip">{{ card.case_number }}</span>{% endif %}
+    {% if card.similarity is not none and card.similarity is defined %}
+    <span class="pet-card__badge">{{ similarity_badge(card.similarity, card.tier) }}</span>
+    {% endif %}
+  </div>
+  <div class="pet-card__body">
+    <div class="pet-card__head">
+      <h3 class="pet-card__title">{{ card.title }}</h3>
+      {% if card.chip %}<span class="chip chip--{{ card.chip_kind or 'lost' }}">{{ card.chip }}</span>{% endif %}
+    </div>
+    {% if card.tier_label %}<p class="tier-label tier-label--{{ card.tier }} mb-0">{{ card.tier_label }}</p>{% endif %}
+    {% if card.subtitle %}<p class="pet-card__subtitle">{{ card.subtitle }}</p>{% endif %}
+    <ul class="pet-card__meta">
+      {% if card.distance_km is not none and card.distance_km is defined or card.place %}
+      <li>{{ icon('map-pin') }}<span>{{ card.location_prefix or 'Last seen' }}
+        {%- if card.distance_km is not none and card.distance_km is defined %} {{ card.distance_km|km }} away{% endif %}
+        {%- if card.place %}{% if card.distance_km is not none and card.distance_km is defined %},{% endif %} {{ card.place }}{% endif %}</span></li>
+      {% endif %}
+      {% if card.date_label %}<li>{{ icon('calendar') }}<span>{{ card.date_label }}</span></li>{% endif %}
+      {% if card.person_label %}<li>{{ icon('user') }}<span>{{ card.person_label }}</span></li>{% endif %}
+    </ul>
+    {% if card.visual_check_unavailable %}
+    <p class="field__hint mb-0">{{ icon('info') }} Photo comparison was unavailable; this score uses the listed details only.</p>
+    {% endif %}
+    {% if card.why and (card.why.matching_features or card.why.differences) %}
+    <details class="pet-card__why">
+      <summary>Why similar?</summary>
+      {% if card.why.matching_features %}
+      <strong>Matching features</strong>
+      <ul>{% for f in card.why.matching_features %}<li>{{ f }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if card.why.differences %}
+      <strong>Notable differences</strong>
+      <ul>{% for d in card.why.differences %}<li>{{ d }}</li>{% endfor %}</ul>
+      {% endif %}
+    </details>
+    {% endif %}
+    <div class="pet-card__actions">
+      {% if card.detail_url %}<a class="btn btn-pale" href="{{ card.detail_url }}">{{ detail_label }}</a>{% endif %}
+      {% if card.message_url %}<a class="btn btn-primary" href="{{ card.message_url }}">{{ icon('chat') }} {{ message_label }}</a>{% endif %}
+    </div>
+  </div>
+</article>
+{%- endmacro %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header %}
+{% block title %}Privacy Notice{% endblock %}
+{% block content %}
+<div class="container">
+  {{ page_header("Privacy", "Notice", subtitle="How PawBalik handles your personal data, in the spirit of the Data Privacy Act of 2012 (RA 10173).", icon_name="lock", art=False) }}
+
+  <article class="prose card card-pad">
+    <p class="muted mt-0">This notice applies to the PawBalik student capstone project for Tacloban City.</p>
+
+    <h2 class="mt-0">What we collect</h2>
+    <ul>
+      <li><strong>Account data:</strong> your full name, email address, mobile number and a securely hashed password (we never store your password itself).</li>
+      <li><strong>Case data:</strong> lost-pet reports, pet sightings and scans, including pet photos, descriptions, the location you pin and the date and time.</li>
+      <li><strong>Messages</strong> you send inside a case conversation, including shared location pins and photos.</li>
+      <li><strong>Technical data:</strong> push-notification device tokens (only if you enable alerts), SMS and push delivery logs, and security logs such as failed log-in attempts with the IP address.</li>
+    </ul>
+
+    <h2>Why we use it</h2>
+    <ul>
+      <li>To help reunite lost dogs and cats with their owners and to coordinate rescue.</li>
+      <li>To compare pet photos and find possible similarities (see below).</li>
+      <li>To notify you about possible matches, new messages and case updates by in-app notification, push notification and SMS, according to your settings.</li>
+      <li>To keep the service safe: preventing spam and abuse and investigating reports.</li>
+    </ul>
+
+    <h2>Who can see what</h2>
+    <ul>
+      <li><strong>Lost Pet Reports are public.</strong> Your name as owner is shown; your phone number is masked (for example <code>+63 9** *** 1234</code>) unless you choose to show it.</li>
+      <li><strong>Pet Sightings are private.</strong> Only the finder, administrators and an owner whose scan returned that sighting as a possible match can see it. Each such access is logged.</li>
+      <li><strong>Messages</strong> are visible only to the two people in the conversation. Phone numbers are not shared in chat unless you type them yourself.</li>
+      <li><strong>Administrators</strong> can moderate reports and sightings and review abuse reports.</li>
+    </ul>
+
+    <h2>Photo analysis with Google Gemini</h2>
+    <p>Pet photos are sent to the Google Gemini API only to check the photo and compare pet features. We never send your name, contact details or messages to Gemini. Photos are stored with Cloudinary (or on the PawBalik server). Location data (EXIF/GPS) inside photo files is removed before storage.</p>
+
+    <h2>How long we keep it</h2>
+    <ul>
+      <li>Photos uploaded only for a scan are deleted after {{ config.SCAN_PHOTO_RETENTION_DAYS }} days.</li>
+      <li>Pet sightings expire after {{ config.SIGHTING_EXPIRY_DAYS }} days and are then no longer searched.</li>
+      <li>Reports stay until you close them; closed cases remain visible with their status history.</li>
+    </ul>
+
+    <h2>Your rights</h2>
+    <p>You may access and correct your personal data in <a href="{{ url_for('auth.profile') }}">Profile &amp; Settings</a>, turn SMS and push alerts off at any time, and ask the administrators to delete your account and data. You may also object to processing or file a complaint with the National Privacy Commission.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about privacy: contact the PawBalik team (see <a href="{{ url_for('main.about') }}">About Us</a>).</p>
+  </article>
+</div>
+{% endblock %}

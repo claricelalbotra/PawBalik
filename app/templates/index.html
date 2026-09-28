@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Bringing Lost Paws Back Home{% endblock %}
+{% block content %}
+<div class="container">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero__text">
+      <h1 class="hero__title" id="hero-title">Bringing Lost Paws Back <span class="hero__accent">Home.</span></h1>
+      <p class="hero__subtitle">Photo matching and community rescue coordination for lost and found dogs and cats in Tacloban City.</p>
+
+      <div class="action-cards">
+        <a class="action-card action-card--green" href="{{ url_for('pets.new') }}">
+          <span class="action-card__icon">{{ icon('search-paw') }}</span>
+          <h2 class="action-card__title">Report Lost Pet</h2>
+          <p class="action-card__text">Report your lost pet to find possible sightings.</p>
+          <span class="action-card__arrow">{{ icon('arrow-right') }}</span>
+        </a>
+        <a class="action-card action-card--blue" href="{{ url_for('scanner.found') }}">
+          <span class="action-card__icon">{{ icon('paw') }}</span>
+          <h2 class="action-card__title">Match a Found Pet</h2>
+          <p class="action-card__text">Upload or scan a found pet to find its owner.</p>
+          <span class="action-card__arrow">{{ icon('arrow-right') }}</span>
+        </a>
+        <a class="action-card action-card--red" href="{{ url_for('rescue.directory') }}">
+          <span class="action-card__icon">{{ icon('map-pin') }}</span>
+          <h2 class="action-card__title">Find Rescue Help</h2>
+          <p class="action-card__text">Find shelters, vets &amp; rescuers near you.</p>
+          <span class="action-card__arrow">{{ icon('arrow-right') }}</span>
+        </a>
+      </div>
+
+      <p class="species-note">{{ icon('shield') }} {{ S.SPECIES_NOTE }}</p>
+    </div>
+
+    <div class="hero__art">
+      {% if hero_image_exists is defined and hero_image_exists %}
+      <img src="{{ url_for('static', filename='images/hero.png') }}" alt="A dog and a cat sitting together" width="520" height="440">
+      {% else %}
+      <img src="{{ url_for('static', filename='images/hero-pets.png') }}" alt="Illustration of a friendly dog and cat sitting together" width="520" height="440">
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="feature-strip" aria-label="What PawBalik does">
+    <div class="feature">
+      <span class="feature__icon">{{ icon('scan') }}</span>
+      <div>
+        <h2 class="feature__title h4">Scan Matching</h2>
+        <p class="feature__text">Helps match lost and found pets.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature__icon">{{ icon('map-pin') }}</span>
+      <div>
+        <h2 class="feature__title h4">Nearby Help</h2>
+        <p class="feature__text">Locate shelters, vets and rescuers near you instantly.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature__icon">{{ icon('bell') }}</span>
+      <div>
+        <h2 class="feature__title h4">Updates</h2>
+        <p class="feature__text">Get updates about potential matches and case updates.</p>
+      </div>
+    </div>
+    <div class="feature">
+      <span class="feature__icon">{{ icon('community') }}</span>
+      <div>
+        <h2 class="feature__title h4">Community Driven</h2>
+        <p class="feature__text">Stronger together. Help pets, help people, build a kinder community.</p>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

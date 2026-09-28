@@ -1,0 +1,23 @@
+{#- "Enable match alerts" card (SPEC 9). Include it on any page:
+      {% include "notifications/_enable_alerts.html" %}
+    Renders nothing for guests or when Firebase web push is not configured. The card starts
+    hidden; static/js/notifications.js shows it only in browsers that support web push, and
+    asks for notification permission only after the button is clicked. -#}
+{% if current_user.is_authenticated and public_config.firebase and public_config.firebase.enabled %}
+<section class="card card--pale alerts-card" data-enable-alerts
+         data-sw-url="{{ url_for('notifications.service_worker') }}"
+         data-devices-url="{{ url_for('notifications.api_register_device') }}"
+         hidden aria-labelledby="alerts-card-title">
+  <span class="alerts-card__icon" aria-hidden="true">{{ icon('bell') }}</span>
+  <div class="alerts-card__text">
+    <h2 class="h4 mb-0" id="alerts-card-title">Get match alerts on this device</h2>
+    <p class="muted mb-0">We send a notification when a possible match is found for your case or someone messages you about it.</p>
+    <p class="alerts-card__status" data-alerts-status role="status" aria-live="polite"></p>
+  </div>
+  <div class="btn-row alerts-card__actions">
+    <button class="btn btn-primary btn-sm" type="button" data-alerts-enable>{{ icon('bell') }} Enable match alerts</button>
+    <button class="btn btn-pale btn-sm" type="button" data-alerts-disable hidden>Turn off on this device</button>
+  </div>
+</section>
+<script type="module" src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+{% endif %}

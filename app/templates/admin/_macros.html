@@ -1,0 +1,74 @@
+{#- Admin-only macros. Import WITH CONTEXT (pagination reads `request`):
+    {% from "admin/_macros.html" import admin_nav, pagination, visibility_form with context %} -#}
+
+{% macro admin_nav(active) -%}
+<nav class="admin-nav" aria-label="Admin sections">
+  <ul>
+    {% for key, endpoint, label, icon_name in [
+        ('dashboard', 'admin.dashboard', 'Dashboard', 'admin'),
+        ('providers', 'admin.providers', 'Providers', 'rescue'),
+        ('reports', 'admin.reports', 'Lost reports', 'report'),
+        ('sightings', 'admin.sightings', 'Sightings', 'search-paw'),
+        ('users', 'admin.users', 'Users', 'user'),
+        ('abuse', 'admin.abuse_reports', 'Abuse reports', 'flag'),
+        ('logs', 'admin.logs', 'Logs', 'list')] %}
+    <li><a class="admin-nav__link{% if key == active %} is-active{% endif %}" href="{{ url_for(endpoint) }}"{% if key == active %} aria-current="page"{% endif %}>{{ icon(icon_name) }}<span>{{ label }}</span></a></li>
+    {% endfor %}
+  </ul>
+</nav>
+{%- endmacro %}
+
+{#- Previous / numbered / next links that keep the current filters. `page` is a Flask-SQLAlchemy Pagination. -#}
+{% macro pagination(page) -%}
+{% if page.pages > 1 %}
+{%- set args = dict(request.view_args or {}, **request.args.to_dict()) -%}
+<nav class="pagination" aria-label="Pages">
+  {% if page.has_prev %}
+  {% set _ = args.update({'page': page.prev_num}) %}
+  <a class="btn btn-pale btn-sm" href="{{ url_for(request.endpoint, **args) }}" rel="prev">{{ icon('arrow-left') }} Previous</a>
+  {% endif %}
+  {% for number in page.iter_pages() %}
+    {% if number %}
+      {% set _ = args.update({'page': number}) %}
+      {% if number == page.page %}
+      <span class="btn btn-primary btn-sm" aria-current="page">{{ number }}</span>
+      {% else %}
+      <a class="btn btn-outline btn-sm" href="{{ url_for(request.endpoint, **args) }}">{{ number }}</a>
+      {% endif %}
+    {% else %}
+      <span class="pagination__gap" aria-hidden="true">…</span>
+    {% endif %}
+  {% endfor %}
+  {% if page.has_next %}
+  {% set _ = args.update({'page': page.next_num}) %}
+  <a class="btn btn-pale btn-sm" href="{{ url_for(request.endpoint, **args) }}" rel="next">Next {{ icon('arrow-right') }}</a>
+  {% endif %}
+</nav>
+<p class="center muted">Page {{ page.page }} of {{ page.pages }} · {{ page.total }} total</p>
+{% endif %}
+{%- endmacro %}
+
+{#- Hide/unhide form with a required reason. -#}
+{% macro visibility_form(action_url, is_hidden, item_label, id) -%}
+<form class="moderation-form" method="post" action="{{ action_url }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  <input type="hidden" name="action" value="{{ 'unhide' if is_hidden else 'hide' }}">
+  <label class="visually-hidden" for="reason-{{ id }}">Reason to {{ 'unhide' if is_hidden else 'hide' }} {{ item_label }}</label>
+  <input class="input input-sm" id="reason-{{ id }}" name="reason" required maxlength="255" placeholder="{{ 'Reason to unhide' if is_hidden else 'Reason to hide (e.g. spam)' }}">
+  <button class="btn btn-sm {{ 'btn-outline' if is_hidden else 'btn-danger' }}" type="submit">{{ icon('eye-off' if not is_hidden else 'check') }} {{ 'Unhide' if is_hidden else 'Hide' }}</button>
+</form>
+{%- endmacro %}
+
+{#- A GET filter bar. Body via {% call %}. -#}
+{% macro filter_bar(action_url) -%}
+<form class="card card-pad admin-filters" method="get" action="{{ action_url }}" role="search">
+  <div class="admin-filters__row">
+    {{ caller() }}
+    <div class="admin-filters__actions btn-row">
+      <button class="btn btn-primary btn-sm" type="submit">{{ icon('filter') }} Filter</button>
+      <a class="btn btn-link btn-sm" href="{{ action_url }}">Reset</a>
+    </div>
+  </div>
+</form>
+{%- endmacro %}

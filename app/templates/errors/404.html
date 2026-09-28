@@ -1,0 +1,7 @@
+{% extends "errors/error.html" %}
+{% block error_title %}Page not found{% endblock %}
+{% block error_message %}We could not find that page. The case may have been closed or removed, or the link is mistyped.{% endblock %}
+{% block error_actions %}
+<a class="btn btn-primary" href="{{ url_for('main.index') }}">{{ icon('home') }} Home</a>
+<a class="btn btn-pale" href="{{ url_for('pets.browse') }}">Browse lost pets</a>
+{% endblock %}

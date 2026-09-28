@@ -1,0 +1,166 @@
+{#- Form helpers. Import what you need:
+    {% from "partials/forms.html" import form_field, input_field, csrf_input, checkbox_field,
+                                        toggle_group, photo_dropzone, location_picker, form_errors %}
+
+    * form_field(field, hint=None, **attrs)  - a WTForms field with label, errors, hint, aria.
+    * input_field(name, label, value='', type='text', required=False, error=None, hint=None, **attrs)
+                                             - the same markup for hand-written forms.
+    Every field gets a <label>; errors use .field__error and aria-invalid/aria-describedby.
+-#}
+
+{% macro csrf_input() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro form_errors(errors) -%}
+{% if errors %}
+<ul class="form-errors" role="alert">
+  {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+</ul>
+{% endif %}
+{%- endmacro %}
+
+{#- WTForms field. Booleans render as a checkbox row. -#}
+{% macro form_field(field, hint=None, label=None, class="") -%}
+{%- set has_error = field.errors|length > 0 -%}
+{%- set described = [] -%}
+{%- if hint %}{% set _ = described.append(field.id ~ '-hint') %}{% endif -%}
+{%- if has_error %}{% set _ = described.append(field.id ~ '-error') %}{% endif -%}
+{%- set attrs = kwargs.copy() -%}
+{%- if described %}{% set _ = attrs.update({'aria-describedby': described|join(' ')}) %}{% endif -%}
+{%- if has_error %}{% set _ = attrs.update({'aria-invalid': 'true'}) %}{% endif -%}
+{%- if field.flags.required %}{% set _ = attrs.update({'required': True}) %}{% endif -%}
+{% if field.type == 'BooleanField' %}
+<div class="field {{ class }}{% if has_error %} has-error{% endif %}">
+  <label class="checkbox" for="{{ field.id }}">
+    {{ field(**attrs) }}
+    <span>{{ label or field.label.text }}</span>
+  </label>
+  {% if hint %}<p class="field__hint" id="{{ field.id }}-hint">{{ hint }}</p>{% endif %}
+  {% if has_error %}<p class="field__error" id="{{ field.id }}-error">{{ field.errors|join(' ') }}</p>{% endif %}
+</div>
+{% else %}
+<div class="field {{ class }}{% if has_error %} has-error{% endif %}">
+  <label class="field__label" for="{{ field.id }}">{{ label or field.label.text }}{% if field.flags.required %}<span class="req" aria-hidden="true">*</span>{% endif %}</label>
+  {{ field(class_="input", **attrs) }}
+  {% if hint %}<p class="field__hint" id="{{ field.id }}-hint">{{ hint }}</p>{% endif %}
+  {% if has_error %}<p class="field__error" id="{{ field.id }}-error">{{ field.errors|join(' ') }}</p>{% endif %}
+</div>
+{% endif %}
+{%- endmacro %}
+
+{#- Hand-written input (type text/email/tel/number/date/time/textarea/select).
+    For select pass options=[(value, label), ...]. -#}
+{% macro input_field(name, label, value='', type='text', required=False, error=None, hint=None, options=None, id=None, class="") -%}
+{%- set fid = id or ('f-' ~ name) -%}
+{%- set described = [] -%}
+{%- if hint %}{% set _ = described.append(fid ~ '-hint') %}{% endif -%}
+{%- if error %}{% set _ = described.append(fid ~ '-error') %}{% endif -%}
+<div class="field {{ class }}{% if error %} has-error{% endif %}">
+  <label class="field__label" for="{{ fid }}">{{ label }}{% if required %}<span class="req" aria-hidden="true">*</span>{% endif %}</label>
+  {% if type == 'textarea' %}
+  <textarea class="input" id="{{ fid }}" name="{{ name }}"{% if required %} required{% endif %}{% if described %} aria-describedby="{{ described|join(' ') }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}{% for k, v in kwargs.items() %} {{ k|replace('_', '-') }}="{{ v }}"{% endfor %}>{{ value if value is not none else '' }}</textarea>
+  {% elif type == 'select' %}
+  <select class="input" id="{{ fid }}" name="{{ name }}"{% if required %} required{% endif %}{% if described %} aria-describedby="{{ described|join(' ') }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}{% for k, v in kwargs.items() %} {{ k|replace('_', '-') }}="{{ v }}"{% endfor %}>
+    {% for opt_value, opt_label in options or [] %}
+    <option value="{{ opt_value }}"{% if opt_value|string == value|string %} selected{% endif %}>{{ opt_label }}</option>
+    {% endfor %}
+  </select>
+  {% else %}
+  <input class="input" id="{{ fid }}" name="{{ name }}" type="{{ type }}" value="{{ value if value is not none else '' }}"{% if required %} required{% endif %}{% if described %} aria-describedby="{{ described|join(' ') }}"{% endif %}{% if error %} aria-invalid="true"{% endif %}{% for k, v in kwargs.items() %} {{ k|replace('_', '-') }}="{{ v }}"{% endfor %}>
+  {% endif %}
+  {% if hint %}<p class="field__hint" id="{{ fid }}-hint">{{ hint }}</p>{% endif %}
+  {% if error %}<p class="field__error" id="{{ fid }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro checkbox_field(name, label, checked=False, required=False, error=None, hint=None, value='1', id=None) -%}
+{%- set fid = id or ('f-' ~ name) -%}
+<div class="field{% if error %} has-error{% endif %}">
+  <label class="checkbox" for="{{ fid }}">
+    <input type="checkbox" id="{{ fid }}" name="{{ name }}" value="{{ value }}"{% if checked %} checked{% endif %}{% if required %} required{% endif %}{% if error %} aria-invalid="true" aria-describedby="{{ fid }}-error"{% endif %}>
+    <span>{{ label }}{% if required %}<span class="req" aria-hidden="true">*</span>{% endif %}</span>
+  </label>
+  {% if hint %}<p class="field__hint">{{ hint }}</p>{% endif %}
+  {% if error %}<p class="field__error" id="{{ fid }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Pill toggle buttons backed by radio inputs.
+    toggle_group("species", "Type of Pet", [("dog", "Dog", "dog"), ("cat", "Cat", "cat")], value="dog", required=True, tiles=True)
+    Each option is (value, label) or (value, label, icon_name). -#}
+{% macro toggle_group(name, label, options, value=None, required=False, error=None, hint=None, tiles=False) -%}
+<fieldset class="field{% if error %} has-error{% endif %}">
+  <legend class="field__label">{{ label }}{% if required %}<span class="req" aria-hidden="true">*</span>{% endif %}</legend>
+  <div class="toggle-group{% if tiles %} toggle-group--tiles{% endif %}">
+    {% for opt in options %}
+    <label class="toggle">
+      <input type="radio" name="{{ name }}" value="{{ opt[0] }}"{% if value is not none and opt[0]|string == value|string %} checked{% endif %}{% if required and loop.first %} required{% endif %}>
+      <span>{% if opt|length > 2 and opt[2] %}{{ icon(opt[2], class_='icon--lg' if tiles else '') }}{% endif %}{{ opt[1] }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  {% if hint %}<p class="field__hint">{{ hint }}</p>{% endif %}
+  {% if error %}<p class="field__error">{{ error }}</p>{% endif %}
+</fieldset>
+{%- endmacro %}
+
+{#- Photo drop zone. main.js adds previews, drag & drop, the max-files check and
+    client-side compression (~1600 px JPEG) before the form is submitted.
+    photo_dropzone("photos", "Photo(s) of Your Pet", max_files=5, required=True) -#}
+{% macro photo_dropzone(name="photos", label="Photos", max_files=5, required=False, error=None, hint=None, capture=False, id=None) -%}
+{%- set fid = id or ('f-' ~ name) -%}
+<div class="field{% if error %} has-error{% endif %}">
+  <span class="field__label" id="{{ fid }}-label">{{ label }}{% if required %}<span class="req" aria-hidden="true">*</span>{% endif %}</span>
+  <div class="dropzone" data-dropzone data-max-files="{{ max_files }}">
+    <input class="dropzone__input" type="file" id="{{ fid }}" name="{{ name }}" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
+      {%- if max_files > 1 %} multiple{% endif %}{% if capture %} capture="environment"{% endif %}{% if required %} required{% endif %}
+      aria-labelledby="{{ fid }}-label" aria-describedby="{{ fid }}-help{% if error %} {{ fid }}-error{% endif %}">
+    <span class="dropzone__icon">{{ icon('upload', class_='icon--xl') }}</span>
+    <span class="dropzone__title">Tap to choose {{ 'photos' if max_files > 1 else 'a photo' }} or drag {{ 'them' if max_files > 1 else 'it' }} here</span>
+    <span class="field__hint" id="{{ fid }}-help">{{ hint or ('JPEG, PNG or WebP, up to 8 MB each' ~ ((', up to ' ~ max_files ~ ' photos. The first photo is the main photo.') if max_files > 1 else '.')) }}</span>
+  </div>
+  <div class="dropzone__previews" data-dropzone-previews aria-live="polite"></div>
+  {% if error %}<p class="field__error" id="{{ fid }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{#- Location picker (SPEC 5.7, 17.1): Leaflet tap-to-pin map (when MAP_PICKER=leaflet),
+    "Use my current location" (accuracy shown), manual lat/lng, barangay/landmark text and a
+    "Check on Google Maps" link. static/js/map.js enhances it automatically; without JS the
+    manual fields still work. Field names: <prefix>lat, <prefix>lng, <prefix>place
+    (prefix defaults to "" -> lat, lng, place).
+    location_picker(lat=form_lat, lng=form_lng, place=form_place, required=True, error=err,
+                    label="Where did you find this pet?", place_label="Barangay / landmark") -#}
+{% macro location_picker(prefix="", lat=None, lng=None, place=None, required=True, error=None,
+                         label="Location", place_label="Barangay / landmark",
+                         hint="Tap the map then pin the location.", id="location") -%}
+<fieldset class="location-picker field{% if error %} has-error{% endif %}" data-location-picker id="{{ id }}"
+  data-lat-input="{{ prefix }}lat" data-lng-input="{{ prefix }}lng">
+  <legend class="field__label">{{ label }}{% if required %}<span class="req" aria-hidden="true">*</span>{% endif %}</legend>
+  {% if public_config.mapPicker == 'leaflet' %}
+  <p class="location-picker__hint">{{ hint }}</p>
+  <div class="location-picker__map" data-map role="application" aria-label="Map: tap to place the pin"></div>
+  {% endif %}
+  <div class="btn-row">
+    <button type="button" class="btn btn-outline btn-sm" data-use-location>{{ icon('crosshair') }} Use my current location</button>
+    <a class="btn btn-link btn-sm" data-check-maps href="{% if lat is not none and lng is not none and lat != '' %}{{ view_url(lat, lng) }}{% else %}https://www.google.com/maps{% endif %}" target="_blank" rel="noopener">{{ icon('external') }} Check on Google Maps</a>
+  </div>
+  <p class="location-picker__status" data-location-status role="status"></p>
+  <div class="location-picker__coords">
+    <div class="field">
+      <label class="field__label" for="{{ id }}-lat">Latitude</label>
+      <input class="input" id="{{ id }}-lat" name="{{ prefix }}lat" type="number" step="any" min="-90" max="90" inputmode="decimal" value="{{ lat if lat is not none else '' }}"{% if required %} required{% endif %} data-lat>
+    </div>
+    <div class="field">
+      <label class="field__label" for="{{ id }}-lng">Longitude</label>
+      <input class="input" id="{{ id }}-lng" name="{{ prefix }}lng" type="number" step="any" min="-180" max="180" inputmode="decimal" value="{{ lng if lng is not none else '' }}"{% if required %} required{% endif %} data-lng>
+    </div>
+  </div>
+  <div class="field">
+    <label class="field__label" for="{{ id }}-place">{{ place_label }}</label>
+    <input class="input" id="{{ id }}-place" name="{{ prefix }}place" type="text" maxlength="160" value="{{ place or '' }}" placeholder="e.g. Brgy. San Jose, near the chapel" data-place>
+  </div>
+  {% if error %}<p class="field__error">{{ error }}</p>{% endif %}
+</fieldset>
+{%- endmacro %}

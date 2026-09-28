@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout, map_buttons %}
+{% from "partials/forms.html" import csrf_input, checkbox_field %}
+{% from "rescue/_provider_card.html" import open_chip %}
+{% set nav_active = "rescue" %}
+{% block title %}Request Rescue Help{% endblock %}
+{% block content %}
+{%- if report -%}
+  {%- set back_url = url_for('cases.detail', report_id=report.id) -%}
+  {%- set subject_label = "case " ~ report.case_number ~ " (" ~ report.pet_name ~ ")" -%}
+  {%- set lat, lng = report.last_seen_lat, report.last_seen_lng -%}
+{%- else -%}
+  {%- set back_url = url_for('sightings.detail', sighting_id=sighting.id) -%}
+  {%- set subject_label = "Pet Sighting #" ~ sighting.id -%}
+  {%- set lat, lng = sighting.seen_lat, sighting.seen_lng -%}
+{%- endif -%}
+<div class="container">
+  <p><a class="btn btn-link" href="{{ back_url }}">{{ icon('arrow-left') }} Back to {{ subject_label }}</a></p>
+  {{ page_header("Request", "Rescue Help", subtitle="Build a short summary of " ~ subject_label ~ " to send to a rescuer, vet or shelter.", icon_name="rescue", art=False) }}
+
+  <div class="emergency-note" role="note">
+    {% call callout(None, "danger", "warning") %}<p>{{ S.EMERGENCY_NOTE }}</p>{% endcall %}
+  </div>
+
+  {% if saved %}
+  <div class="mt-4">
+    {% call callout("Summary saved", "success", "check-circle") %}
+    <p>Copy the summary below and send it by SMS, Messenger or read it out when you call.{% if saved.provider %} You chose <strong>{{ saved.provider.name }}</strong>.{% endif %}</p>
+    {% endcall %}
+  </div>
+  {% endif %}
+
+  <div class="split split--rescue mt-4">
+    <form class="card card-pad form stack" method="post" action="{{ url_for('rescue.request_help', **subject_args) }}" data-rescue-request
+      data-subject-key="{{ 'lost_report_id' if report else 'sighting_id' }}" data-subject-id="{{ report.id if report else sighting.id }}" novalidate>
+      {{ csrf_input() }}
+      <fieldset class="field{% if errors.provider_id %} has-error{% endif %}">
+        <legend class="field__label">1. Choose who to contact <span class="muted">(optional)</span></legend>
+        <p class="field__hint">Nearest providers to this location first.</p>
+        <ul class="provider-picker">
+          <li class="provider-picker__item">
+            <label class="provider-picker__choice">
+              <input type="radio" name="provider_id" value=""{% if not form.provider_id %} checked{% endif %}>
+              <span><strong>No specific provider</strong><br><span class="muted">I will decide later.</span></span>
+            </label>
+          </li>
+          {% for p in providers %}
+          <li class="provider-picker__item">
+            <label class="provider-picker__choice">
+              <input type="radio" name="provider_id" value="{{ p.id }}"{% if form.provider_id == p.id %} checked{% endif %}>
+              <span>
+                <strong>{{ p.name }}</strong>
+                <span class="cluster provider-card__chips">
+                  <span class="chip provider-type provider-type--{{ p.type }}">{{ p.type_label }}</span>
+                  {% if p.is_sample %}<span class="chip chip--sample">Sample</span>{% endif %}
+                  {{ open_chip(p) }}
+                  {% if p.distance_km is not none %}<span class="muted">{{ p.distance_km|km }} away</span>{% endif %}
+                </span>
+              </span>
+            </label>
+            <div class="btn-row provider-picker__actions">
+              {% for ph in p.phones if ph.tel %}
+              <a class="btn btn-primary btn-sm" href="{{ ph.tel }}">{{ icon('phone') }} Call {{ ph.display }}</a>
+              <button class="btn btn-pale btn-sm" type="button" data-copy-text="{{ ph.display }}">{{ icon('copy') }} Copy number</button>
+              {% endfor %}
+              {% if p.directions_url %}<a class="btn btn-outline btn-sm" href="{{ p.directions_url }}" target="_blank" rel="noopener">{{ icon('directions') }} Directions</a>{% endif %}
+            </div>
+          </li>
+          {% else %}
+          <li class="muted">No providers in the directory yet.</li>
+          {% endfor %}
+        </ul>
+        {% if errors.provider_id %}<p class="field__error">{{ errors.provider_id }}</p>{% endif %}
+        <p class="mb-0"><a href="{{ url_for('rescue.directory', **subject_args) }}">See the full Rescue Directory</a></p>
+      </fieldset>
+
+      <fieldset class="field">
+        <legend class="field__label">2. Contact details</legend>
+        {% if report %}
+          {% set phone_label = "Include my phone number (" ~ (report.contact_phone|phone or "none on file") ~ ")" %}
+        {% elif is_reporter %}
+          {% set phone_label = "Include my phone number (" ~ (sighting.contact_phone|phone or "none on file") ~ ")" %}
+        {% else %}
+          {% set phone_label = "Include my phone number (" ~ (current_user.mobile_e164|phone or "none on file") ~ ")" %}
+        {% endif %}
+        {{ checkbox_field("include_phone", phone_label, checked=form.include_phone, hint="Off by default unless your privacy settings already share your phone number." if is_reporter else "The finder's number is only included if they chose to share it.") }}
+      </fieldset>
+
+      <div class="field{% if errors.note %} has-error{% endif %}">
+        <label class="field__label" for="f-note">3. Short note <span class="muted">(optional)</span></label>
+        <textarea class="input" id="f-note" name="note" rows="3" maxlength="{{ note_max }}" placeholder="e.g. The dog is limping on its front leg and is hiding under a jeepney stop."{% if errors.note %} aria-invalid="true" aria-describedby="f-note-error"{% endif %}>{{ form.note }}</textarea>
+        {% if errors.note %}<p class="field__error" id="f-note-error">{{ errors.note }}</p>{% endif %}
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit">{{ icon('clipboard') }} Create summary</button>
+      </div>
+    </form>
+
+    <section class="card card-pad stack rescue-summary" aria-labelledby="summary-title">
+      <h2 class="h4" id="summary-title">{{ icon('clipboard') }} {{ 'Your rescue summary' if saved else 'Summary preview' }}</h2>
+      <label class="visually-hidden" for="rescue-summary">Rescue summary text</label>
+      <textarea class="input rescue-summary__text" id="rescue-summary" rows="14" readonly data-summary data-saved="{{ '1' if saved else '0' }}">{{ summary }}</textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" type="button" data-copy-summary>{{ icon('copy') }} Copy summary</button>
+      </div>
+      <p class="field__hint mb-0" data-copy-status role="status" aria-live="polite">
+        {% if saved %}Saved. Copy it and send it to the provider.{% else %}Copying also saves this request so PawBalik can keep a record. Without JavaScript, use "Create summary" and then select the text.{% endif %}
+      </p>
+      <div>
+        <p class="field__label mb-0">Location</p>
+        {{ map_buttons(lat, lng) }}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script type="module" src="{{ url_for('static', filename='js/rescue.js') }}"></script>{% endblock %}

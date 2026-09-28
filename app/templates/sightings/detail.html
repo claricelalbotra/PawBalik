@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% from "partials/ui.html" import page_header, callout, status_badge, map_buttons, disclaimer %}
+{% from "partials/forms.html" import csrf_input %}
+{% set nav_active = "match" %}
+{% block title %}Pet Sighting{% endblock %}
+
+{% block content %}
+{%- set species = sighting.species|label('Species') -%}
+<div class="container">
+  {% call page_header("Sighted", species|lower, icon_name="paw", art=False) %}
+  <p class="cluster mb-0">
+    {{ status_badge(sighting.status) }}
+    {% if sighting.is_hidden %}{{ status_badge('hidden', 'Hidden by moderator') }}{% endif %}
+    <span class="chip chip--sighting">{{ icon('lock') }} Private sighting</span>
+    <span class="muted">Seen {{ sighting.seen_at|timeago }}</span>
+  </p>
+  {% endcall %}
+
+  {% if created %}
+  {% call callout("Thank you! Your sighting was saved.", "success", "check-circle") %}
+  <p>Your sighting is <strong>private</strong>: it is not listed anywhere on PawBalik. We compare it with
+    lost pet reports automatically, and owners who scan for their lost pet may see it as a
+    <em>possible</em> match. If an owner thinks it could be their pet, they will message you here in PawBalik.</p>
+  <p>It stays active for {{ expiry_days }} days (until {{ sighting.expires_at|date }}). You can mark it as
+    matched or withdraw it at any time.</p>
+  {% endcall %}
+  {% endif %}
+
+  {% if sighting.is_hidden and can_manage %}
+  {% call callout("Hidden by a moderator", "warn", "eye-off") %}
+  <p>This sighting is not included in any search.{% if sighting.hidden_reason %} Reason: {{ sighting.hidden_reason }}{% endif %}</p>
+  {% endcall %}
+  {% endif %}
+
+  {% if not is_finder and not can_manage %}
+  {% call callout("Why can you see this sighting?", "info", "info") %}
+  <p>A scan for your lost pet found a possible visual similarity with this animal. This does not confirm
+    that it is your pet. Please verify identifying details with the finder before arranging a handover.</p>
+  {% endcall %}
+  {{ disclaimer("mt-4") }}
+  {% endif %}
+
+  <div class="split mt-4">
+    <div class="stack">
+      <section class="card" aria-label="Photos">
+        {% if photos %}
+        <div class="sighting-gallery">
+          {% for photo in photos %}
+          <a class="sighting-gallery__item{% if loop.first %} sighting-gallery__item--main{% endif %}" href="{{ photo.url }}" target="_blank" rel="noopener">
+            <img src="{{ photo.url if loop.first else photo.thumb }}" alt="Photo {{ loop.index }} of the sighted {{ species|lower }}" loading="lazy">
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="card-pad muted">{{ icon('image') }} No photo available.</div>
+        {% endif %}
+      </section>
+
+      <section class="card card-pad">
+        <h2 class="h3">About the animal</h2>
+        <dl class="details-list">
+          <dt>Type</dt><dd>{{ species }}</dd>
+          {% if sighting.breed %}<dt>Breed</dt><dd>{{ sighting.breed }}</dd>{% endif %}
+          {% if sighting.colors %}<dt>Colour / pattern</dt><dd>{{ sighting.colors }}</dd>{% endif %}
+          {% if sighting.size %}<dt>Size</dt><dd>{{ sighting.size|label('PetSize') }}</dd>{% endif %}
+          <dt>Condition</dt><dd>{{ sighting.condition|label('AnimalCondition') }}</dd>
+          <dt>With the finder?</dt><dd>{{ 'Yes, the finder is keeping it safe' if sighting.is_holding_animal else 'No, it was only seen' }}</dd>
+          <dt>Seen on</dt><dd><time datetime="{{ sighting.seen_at|iso_local }}">{{ sighting.seen_at|datetime }}</time></dd>
+          {% if sighting.notes %}<dt>Notes</dt><dd class="prewrap">{{ sighting.notes }}</dd>{% endif %}
+        </dl>
+      </section>
+    </div>
+
+    <aside class="stack">
+      <section class="card card-pad">
+        <h2 class="h3">{{ icon('map-pin') }} Where it was seen</h2>
+        {% if sighting.seen_place %}<p>{{ sighting.seen_place }}</p>{% endif %}
+        <p class="muted small">{{ '%.5f'|format(sighting.seen_lat) }}, {{ '%.5f'|format(sighting.seen_lng) }}</p>
+        {{ map_buttons(sighting.seen_lat, sighting.seen_lng) }}
+      </section>
+
+      <section class="card card-pad">
+        <h2 class="h3">{{ icon('user') }} Finder</h2>
+        <p><strong>{{ sighting.contact_name }}</strong></p>
+        <ul class="plain-list stack-sm">
+          <li class="muted">{{ icon('chat') }} Prefers: {{ sighting.contact_pref|label('ContactPref') }}</li>
+          {% if show_phone and sighting.contact_phone %}
+          <li>{{ icon('phone') }} <a href="{{ tel_href(sighting.contact_phone) }}">{{ sighting.contact_phone|phone }}</a></li>
+          {% endif %}
+          {% if show_email and sighting.contact_email %}
+          <li>{{ icon('mail') }} {{ sighting.contact_email }}</li>
+          {% endif %}
+        </ul>
+        {% if message_url %}
+        <a class="btn btn-primary btn-block mt-2" href="{{ message_url }}">{{ icon('chat') }} Message finder</a>
+        {% endif %}
+      </section>
+
+      <section class="card card-pad">
+        <h2 class="h3">{{ icon('rescue') }} Needs help?</h2>
+        <p class="muted">{% if sighting.condition == 'injured' %}This animal was reported injured. {% endif %}Find nearby rescuers, vets and shelters, or copy a rescue request summary.</p>
+        <a class="btn btn-outline btn-block" href="{{ url_for('rescue.request_help', sighting_id=sighting.id) }}">{{ icon('rescue') }} Request Rescue Help</a>
+      </section>
+
+      {% if can_manage %}
+      <section class="card card-pad" aria-labelledby="manage-title">
+        <h2 class="h3" id="manage-title">{{ icon('settings') }} Manage sighting</h2>
+        {% if sighting.expires_at and sighting.status == 'active' %}
+        <p class="muted small">Active until {{ sighting.expires_at|date }}.</p>
+        {% endif %}
+        <div class="stack-sm">
+          <a class="btn btn-pale btn-block" href="{{ url_for('sightings.edit', sighting_id=sighting.id) }}">{{ icon('edit') }} Edit details</a>
+          {% for status in next_statuses %}
+          <form method="post" action="{{ url_for('sightings.update_status', sighting_id=sighting.id) }}">
+            {{ csrf_input() }}
+            <input type="hidden" name="status" value="{{ status }}">
+            {% if status == 'matched' %}
+            <button class="btn btn-green btn-block" type="submit">{{ icon('check-circle') }} Mark as matched</button>
+            {% elif status == 'expired' %}
+            <button class="btn btn-outline btn-block" type="submit">{{ icon('x') }} Withdraw sighting</button>
+            {% else %}
+            <button class="btn btn-outline btn-block" type="submit">{{ icon('refresh') }} Make active again ({{ expiry_days }} days)</button>
+            {% endif %}
+          </form>
+          {% endfor %}
+        </div>
+        <p class="field__hint mt-2">Withdrawn and matched sightings no longer appear in owners' scans.</p>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}
